@@ -1,0 +1,7 @@
+# Requirements for production
+-r requirements.txt
+
+# Requirements for development
+ruff==0.16.10
+mypy==2.4.0
+pytest==9.1.1

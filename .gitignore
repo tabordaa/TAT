@@ -1,0 +1,16 @@
+# Environment variables
+.env
+.env*
+!.env.example
+
+
+.venv/
+__pycache__/
+node_modules/
+dist/
+*.pptx
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
