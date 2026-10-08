@@ -22,24 +22,39 @@ def _unauthorized() -> HTTPException:
     )
 
 
-def get_current_user(request: Request, db: DbSession) -> User:
-    """Read the JWT from the HttpOnly cookie and load the user it belongs to.
+def resolve_user_from_cookie(request: Request, db: Session) -> User | None:
+    """Return the user behind a VALID session cookie, or None.
 
-    Any protected endpoint just declares `user: CurrentUser` to require login.
+    Valid means: cookie present, signature OK, not expired, user exists,
+    user is active and the token version matches (not revoked by logout).
     """
     token = request.cookies.get(get_settings().cookie_name)
     if not token:
-        raise _unauthorized()
+        return None
 
     try:
         payload = decode_access_token(token)
         user_id = uuid.UUID(str(payload["sub"]))
-    except (jwt.InvalidTokenError, KeyError, ValueError) as exc:
-        raise _unauthorized() from exc
+        token_version = int(payload["ver"])
+    except (jwt.InvalidTokenError, KeyError, ValueError, TypeError):
+        return None
 
     user = db.get(User, user_id)
-    # A deactivated user must lose access even if their token is still valid.
     if user is None or not user.is_active:
+        return None
+    # Revocation check: logout bumped the version -> old tokens stop working.
+    if token_version != user.token_version:
+        return None
+    return user
+
+
+def get_current_user(request: Request, db: DbSession) -> User:
+    """Dependency for protected endpoints: the authenticated user or 401.
+
+    Any endpoint just declares `user: CurrentUser` to require login.
+    """
+    user = resolve_user_from_cookie(request, db)
+    if user is None:
         raise _unauthorized()
     return user
 

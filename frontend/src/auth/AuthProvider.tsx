@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import axios from 'axios'
 import * as authApi from '../api/auth'
+import { api } from '../api/client'
 import type { LoginCredentials, User } from '../types/auth'
 import { AuthContext, type AuthContextValue } from './AuthContext'
 
@@ -23,6 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  // Global 401 handling: if ANY request says "not authenticated" (token
+  // expired or revoked by a logout elsewhere), drop the session. ProtectedRoute
+  // then redirects to /login automatically.
+  useEffect(() => {
+    const interceptorId = api.interceptors.response.use(
+      (response) => response,
+      (error: unknown) => {
+        const isAuthEndpoint =
+          axios.isAxiosError(error) && (error.config?.url ?? '').startsWith('/auth/')
+        if (axios.isAxiosError(error) && error.response?.status === 401 && !isAuthEndpoint) {
+          setUser(null)
+        }
+        return Promise.reject(error)
+      },
+    )
+    return () => {
+      api.interceptors.response.eject(interceptorId)
     }
   }, [])
 

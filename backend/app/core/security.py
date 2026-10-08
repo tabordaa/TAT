@@ -25,13 +25,18 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return password_hash.verify(password, hashed_password)
 
 
-def create_access_token(subject: str, role: str) -> str:
-    """Signed (NOT encrypted) token: never put sensitive data in the payload."""
+def create_access_token(subject: str, role: str, version: int) -> str:
+    """Signed (NOT encrypted) token: never put sensitive data in the payload.
+
+    `version` is the user's current token_version; logout increments it in the
+    database, which makes every previously issued token invalid.
+    """
     settings = get_settings()
     now = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
         "sub": subject,
         "role": role,
+        "ver": version,
         "iat": now,
         "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
     }
@@ -53,6 +58,6 @@ def decode_access_token(token: str) -> dict[str, Any]:
         settings.jwt_secret_key.get_secret_value(),
         # Explicit allow-list: blocks "alg": "none" / algorithm confusion attacks.
         algorithms=[settings.jwt_algorithm],
-        options={"require": ["exp", "iat", "sub"]},
+        options={"require": ["exp", "iat", "sub", "ver"]},
     )
     return payload
