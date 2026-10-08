@@ -1,9 +1,9 @@
 """HU-1.1 Login, HU-1.3 Logout and the current-session endpoint."""
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, resolve_user_from_cookie
 from app.core.config import get_settings
 from app.core.security import (
     DUMMY_HASH,
@@ -39,7 +39,11 @@ def login(credentials: LoginRequest, response: Response, db: DbSession) -> User:
     if not user.is_active:
         raise _invalid_credentials()
 
-    token = create_access_token(subject=str(user.id), role=user.role.value)
+    token = create_access_token(
+        subject=str(user.id),
+        role=user.role.value,
+        version=user.token_version,
+    )
 
     response.set_cookie(
         key=settings.cookie_name,
@@ -61,7 +65,18 @@ def me(current_user: CurrentUser) -> User:
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(response: Response) -> None:
+def logout(request: Request, response: Response, db: DbSession) -> None:
+    """HU-1.3: invalidate the token on the server AND remove the cookie.
+
+    Idempotent: calling it without a valid session still returns 204.
+    """
+    user = resolve_user_from_cookie(request, db)
+    if user is not None:
+        # Every token issued before this moment now has an outdated "ver".
+        # Side effect (accepted): it closes the session on all devices.
+        user.token_version += 1
+        db.commit()
+
     settings = get_settings()
     # Attributes must match the ones used in set_cookie or the browser keeps it.
     response.delete_cookie(
