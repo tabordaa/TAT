@@ -55,8 +55,15 @@ Tests automatizados (QA #54 y #66) movidos a Iteration 2. Verificación hecha co
 
 ## Recordatorios de Kevin
 
-- [ ] **Proteger `main`**: hoy NO tiene branch protection ni rulesets (verificado el 8 oct). Crear un ruleset:
-      exigir PR antes de mergear, bloquear force push y borrado.
+- [ ] **Proteger `main`**: hoy NO tiene branch protection ni rulesets (verificado el 8 oct; repo público, Kevin es admin).
+      Settings → Rules → Rulesets → New branch ruleset, target `main` (Include default branch):
+      - Require a pull request before merging: ✅ con **Required approvals = 0**. NUNCA ≥ 1: GitHub no
+        permite aprobar el propio PR y, siendo el único desarrollador, ningún PR podría mergearse.
+      - Allowed merge methods: solo **Squash**.
+      - Block force pushes: ✅ · Restrict deletions: ✅
+      - Require status checks: ❌ por ahora; activarlo cuando exista el CI (ruff, mypy, typecheck).
+      - Bypass list: vacía (si Kevin se agrega, las reglas dejan de aplicarle).
+      Validación: mergear un PR con `gh pr merge --squash` y comprobar que un `git push` directo a `main` es rechazado.
 - [ ] Integración Azure Boards ↔ GitHub (`AB#<id>` en PRs).
 - [ ] Activar GitHub Student Developer Pack.
 - [ ] Activar "Automatically delete head branches" en GitHub y borrar ramas viejas.
