@@ -22,6 +22,15 @@ Tests automatizados (QA #54 y #66) movidos a Iteration 2. Verificación hecha co
    reingreso tras INACTIVO (201), faltan correo/área/salario (422), salario <= 0 (422), sin sesión (401).
 3. Prueba manual en el navegador (:5173) del formulario con el campo salario y los 409 por campo.
 4. Kevin: estudiar el código (ver "Plan de estudio").
+5. Decidir qué hacer con las QA #54 y #66: siguen como hijas de HU cerradas (1.3 y 2.1); opción limpia:
+   moverlas a una HU técnica del Sprint 2 ("Pruebas automatizadas de autenticación y empleados").
+
+## Forma de trabajo (acordada el 8 oct)
+
+- Herramienta: extensión de Claude Code en VS Code, output style **Learning** (en `.claude/settings.local.json`),
+  modo de permisos normal (no auto). Kevin escribe el código; Claude guía y revisa como PR.
+- `gh` instalado (v2.102.0, autenticado como `tabordaa`). En Git Bash no está en el PATH:
+  usar `"/c/Program Files/GitHub CLI/gh.exe"`. El merge de PRs lo hace Kevin.
 
 ## Decisiones de arquitectura (y por qué)
 
@@ -46,6 +55,8 @@ Tests automatizados (QA #54 y #66) movidos a Iteration 2. Verificación hecha co
 
 ## Recordatorios de Kevin
 
+- [ ] **Proteger `main`**: hoy NO tiene branch protection ni rulesets (verificado el 8 oct). Crear un ruleset:
+      exigir PR antes de mergear, bloquear force push y borrado.
 - [ ] Integración Azure Boards ↔ GitHub (`AB#<id>` en PRs).
 - [ ] Activar GitHub Student Developer Pack.
 - [ ] Activar "Automatically delete head branches" en GitHub y borrar ramas viejas.

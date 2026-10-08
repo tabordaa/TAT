@@ -52,7 +52,8 @@ Before saying something works, run the relevant check (typecheck, tests, endpoin
 
 ## Git
 
-- GitHub Flow: `main` is protected; one short branch per task: `<type>/<azure-id>-<short-desc>`.
+- GitHub Flow: `main` must be protected (ruleset still pending, see PROJECT_STATUS); never push directly to it.
+  One short branch per task: `<type>/<azure-id>-<short-desc>`.
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`); PR title = squash commit message.
 - Commit or stash before switching branches.
 - Link work items with `AB#<id>` in the PR description.
