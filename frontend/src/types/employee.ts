@@ -28,6 +28,7 @@ export interface EmployeeFormValues {
   phone: string
   position: string
   area: string
+  salary: string
   contractType: ContractType | ''
   startDate: string
   endDate: string
@@ -43,13 +44,21 @@ export interface EmployeeCreatePayload {
   last_names: string
   document_type: DocumentType
   document_number: string
-  email: string | null
+  email: string
   phone: string | null
   position: string
-  area: string | null
+  area: string
+  /** Decimal as string (e.g. "2500000.50"): never a float for money. */
+  salary: string
   contract_type: ContractType
   start_date: string
   end_date: string | null
+}
+
+/** 409 body of POST /employees: which unique field is already taken. */
+export interface EmployeeConflict {
+  field: 'document_number' | 'email'
+  message: string
 }
 
 /** Response of POST /employees (mirrors backend EmployeeResponse). */

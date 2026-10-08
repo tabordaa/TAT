@@ -3,6 +3,7 @@
 import enum
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     CheckConstraint,
@@ -10,9 +11,11 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
+    Numeric,
     String,
-    UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -51,9 +54,24 @@ def _enum(enum_cls: type[enum.Enum], name: str) -> Enum:
 class Employee(Base):
     __tablename__ = "employees"
     __table_args__ = (
-        # Business rule enforced by the DATABASE (the only place that can
-        # guarantee it, even with two simultaneous requests).
-        UniqueConstraint("document_type", "document_number", name="uq_employees_document"),
+        # Business rules enforced by the DATABASE (the only place that can
+        # guarantee them, even with two simultaneous requests). They are
+        # PARTIAL unique indexes: only ACTIVO employees must be unique, so an
+        # INACTIVO record does not block a rehire (HU-3.1).
+        Index(
+            "uq_employees_active_document",
+            "document_type",
+            "document_number",
+            unique=True,
+            postgresql_where=text("status = 'ACTIVO'"),
+        ),
+        Index(
+            "uq_employees_active_email",
+            "email",
+            unique=True,
+            postgresql_where=text("status = 'ACTIVO'"),
+        ),
+        CheckConstraint("salary > 0", name="ck_employees_salary_positive"),
         CheckConstraint(
             "end_date IS NULL OR end_date >= start_date",
             name="ck_employees_end_after_start",
@@ -67,12 +85,14 @@ class Employee(Base):
     last_names: Mapped[str] = mapped_column(String(100))
     document_type: Mapped[DocumentType] = mapped_column(_enum(DocumentType, "document_type"))
     document_number: Mapped[str] = mapped_column(String(20))
-    email: Mapped[str | None] = mapped_column(String(255))
+    email: Mapped[str] = mapped_column(String(255))  # stored lowercase
     phone: Mapped[str | None] = mapped_column(String(30))
 
     # Employment data
     position: Mapped[str] = mapped_column(String(120))
-    area: Mapped[str | None] = mapped_column(String(120))
+    area: Mapped[str] = mapped_column(String(120))
+    # Money is never a float: NUMERIC keeps exact cents.
+    salary: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     contract_type: Mapped[ContractType] = mapped_column(_enum(ContractType, "contract_type"))
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
