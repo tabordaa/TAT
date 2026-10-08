@@ -9,6 +9,7 @@ import {
   CONTRACT_TYPES,
   CONTRACTS_WITH_END_DATE,
   DOCUMENT_TYPES,
+  type EmployeeConflict,
   type EmployeeFormErrors,
   type EmployeeFormValues,
 } from '../types/employee'
@@ -22,6 +23,7 @@ const INITIAL_VALUES: EmployeeFormValues = {
   phone: '',
   position: '',
   area: '',
+  salary: '',
   contractType: '',
   startDate: '',
   endDate: '',
@@ -59,6 +61,18 @@ function Field({ id, label, required = false, hint, help, error, children }: Fie
   )
 }
 
+/** Narrows the 409 body sent by POST /employees. */
+function isEmployeeConflict(data: unknown): data is { detail: EmployeeConflict } {
+  if (typeof data !== 'object' || data === null || !('detail' in data)) return false
+  const { detail } = data
+  return (
+    typeof detail === 'object' &&
+    detail !== null &&
+    'field' in detail &&
+    (detail.field === 'document_number' || detail.field === 'email')
+  )
+}
+
 export function RegisterEmployeePage() {
   const navigate = useNavigate()
   const [values, setValues] = useState<EmployeeFormValues>(INITIAL_VALUES)
@@ -83,7 +97,7 @@ export function RegisterEmployeePage() {
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
-    // 2) Server: the real validation (unique document, dates, session).
+    // 2) Server: the real validation (unique document/email, dates, session).
     setIsSubmitting(true)
     try {
       const employee = await createEmployee(toEmployeePayload(values))
@@ -93,7 +107,13 @@ export function RegisterEmployeePage() {
       })
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
-        setErrors({ documentNumber: 'Ya existe un empleado con este número de documento.' })
+        const conflictField =
+          isEmployeeConflict(err.response.data) ? err.response.data.detail.field : 'document_number'
+        setErrors(
+          conflictField === 'email'
+            ? { email: 'Ya existe un empleado activo con este correo.' }
+            : { documentNumber: 'Ya existe un empleado activo con este número de documento.' },
+        )
       } else if (axios.isAxiosError(err) && err.response?.status === 422) {
         setSubmitError('El servidor rechazó algunos datos. Revisa el formulario.')
       } else {
@@ -161,7 +181,7 @@ export function RegisterEmployeePage() {
           <Field id="documentNumber" label="Número de documento" required error={errors.documentNumber}>
             <input id="documentNumber" name="documentNumber" value={values.documentNumber} onChange={handleChange} aria-invalid={errors.documentNumber !== undefined} aria-describedby={describedBy('documentNumber')} />
           </Field>
-          <Field id="email" label="Correo electrónico" help="Para notificaciones oficiales." error={errors.email}>
+          <Field id="email" label="Correo electrónico" required help="Para notificaciones oficiales." error={errors.email}>
             <input id="email" name="email" type="email" placeholder="correo.corporativo@empresa.com" value={values.email} onChange={handleChange} aria-invalid={errors.email !== undefined} aria-describedby={describedBy('email')} />
           </Field>
           <Field id="phone" label="Teléfono" help="Incluye el indicativo del país.">
@@ -181,8 +201,11 @@ export function RegisterEmployeePage() {
           <Field id="position" label="Cargo" required error={errors.position}>
             <input id="position" name="position" placeholder="Ej. Analista de Selección" value={values.position} onChange={handleChange} aria-invalid={errors.position !== undefined} aria-describedby={describedBy('position')} />
           </Field>
-          <Field id="area" label="Área / Departamento">
-            <input id="area" name="area" placeholder="Ej. Recursos Humanos" value={values.area} onChange={handleChange} />
+          <Field id="area" label="Área / Departamento" required error={errors.area}>
+            <input id="area" name="area" placeholder="Ej. Recursos Humanos" value={values.area} onChange={handleChange} aria-invalid={errors.area !== undefined} aria-describedby={describedBy('area')} />
+          </Field>
+          <Field id="salary" label="Salario mensual (COP)" required help="Sin puntos de miles; usa punto para decimales." error={errors.salary}>
+            <input id="salary" name="salary" inputMode="decimal" placeholder="Ej. 2500000" value={values.salary} onChange={handleChange} aria-invalid={errors.salary !== undefined} aria-describedby={describedBy('salary')} />
           </Field>
           <Field id="contractType" label="Tipo de contrato" required error={errors.contractType}>
             <select id="contractType" name="contractType" value={values.contractType} onChange={handleChange} aria-invalid={errors.contractType !== undefined} aria-describedby={describedBy('contractType')}>
