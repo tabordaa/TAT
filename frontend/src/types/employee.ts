@@ -34,3 +34,27 @@ export interface EmployeeFormValues {
 }
 
 export type EmployeeFormErrors = Partial<Record<keyof EmployeeFormValues, string>>
+
+export type EmployeeStatus = 'ACTIVO' | 'INACTIVO'
+
+/** Body of POST /employees (mirrors backend EmployeeCreate, snake_case). */
+export interface EmployeeCreatePayload {
+  first_names: string
+  last_names: string
+  document_type: DocumentType
+  document_number: string
+  email: string | null
+  phone: string | null
+  position: string
+  area: string | null
+  contract_type: ContractType
+  start_date: string
+  end_date: string | null
+}
+
+/** Response of POST /employees (mirrors backend EmployeeResponse). */
+export interface Employee extends EmployeeCreatePayload {
+  id: string
+  status: EmployeeStatus
+  created_at: string
+}

@@ -1,6 +1,9 @@
 import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { IconCheck, IconInfo, IconLock, IconSave, IconUserPlus, IconUsers } from '../components/Icons'
+import axios from 'axios'
+import { createEmployee } from '../api/employees'
+import { IconAlert, IconCheck, IconLock, IconSave, IconUserPlus, IconUsers } from '../components/Icons'
+import { toEmployeePayload } from '../features/employees/toPayload'
 import { validateEmployee } from '../features/employees/validateEmployee'
 import {
   CONTRACT_TYPES,
@@ -60,23 +63,45 @@ export function RegisterEmployeePage() {
   const navigate = useNavigate()
   const [values, setValues] = useState<EmployeeFormValues>(INITIAL_VALUES)
   const [errors, setErrors] = useState<EmployeeFormErrors>({})
-  const [isValidated, setIsValidated] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   function handleChange(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const name = event.target.name as keyof EmployeeFormValues
     setValues((prev) => ({ ...prev, [name]: event.target.value }))
     // Clear the error of the field being edited.
     setErrors((prev) => ({ ...prev, [name]: undefined }))
-    setIsValidated(false)
+    setSubmitError(null)
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSubmitError(null)
+
+    // 1) Client validation: instant feedback, no request if something is wrong.
     const validationErrors = validateEmployee(values)
     setErrors(validationErrors)
-    // TODO(HU-2.1 BE): POST /employees and map a 409 to
-    // errors.documentNumber = 'Ya existe un empleado con este número de documento.'
-    setIsValidated(Object.keys(validationErrors).length === 0)
+    if (Object.keys(validationErrors).length > 0) return
+
+    // 2) Server: the real validation (unique document, dates, session).
+    setIsSubmitting(true)
+    try {
+      const employee = await createEmployee(toEmployeePayload(values))
+      navigate('/empleados', {
+        replace: true,
+        state: { createdName: `${employee.first_names} ${employee.last_names}` },
+      })
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        setErrors({ documentNumber: 'Ya existe un empleado con este número de documento.' })
+      } else if (axios.isAxiosError(err) && err.response?.status === 422) {
+        setSubmitError('El servidor rechazó algunos datos. Revisa el formulario.')
+      } else {
+        setSubmitError('No pudimos guardar el empleado. Intenta de nuevo.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const needsEndDate =
@@ -109,7 +134,7 @@ export function RegisterEmployeePage() {
         </div>
       </div>
 
-      <form className="card form-card" onSubmit={handleSubmit} noValidate>
+      <form className="card form-card" onSubmit={(e) => void handleSubmit(e)} noValidate>
         <div className="form-section-header">
           <p className="section-kicker">SECCIÓN 01</p>
           <h2>Datos personales</h2>
@@ -197,12 +222,11 @@ export function RegisterEmployeePage() {
           </div>
         </div>
 
-        {isValidated && (
-          <div className="alert alert-info" role="status">
-            <IconInfo size={20} />
+        {submitError !== null && (
+          <div className="alert alert-error" role="alert">
+            <IconAlert size={20} />
             <div className="alert-body">
-              <strong>Formulario válido.</strong>
-              <span>El guardado se conecta al API en la siguiente tarea (HU-2.1 backend).</span>
+              <strong>{submitError}</strong>
             </div>
           </div>
         )}
@@ -215,8 +239,8 @@ export function RegisterEmployeePage() {
             <button type="button" className="btn btn-secondary" onClick={() => navigate('/empleados')}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary">
-              <IconSave /> Guardar empleado
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              <IconSave /> {isSubmitting ? 'Guardando…' : 'Guardar empleado'}
             </button>
           </div>
         </div>

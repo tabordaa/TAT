@@ -266,6 +266,12 @@ a {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+.alert-success {
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+  color: var(--color-success);
+  margin-bottom: 1rem;
+}
 .alert-body {
   display: flex;
   flex-direction: column;

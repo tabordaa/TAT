@@ -1,8 +1,19 @@
-import { Link } from 'react-router'
-import { IconUserPlus, IconUsers } from '../components/Icons'
+import { Link, useLocation } from 'react-router'
+import { IconCheck, IconUserPlus, IconUsers } from '../components/Icons'
+
+/** Reads the name sent by RegisterEmployeePage after a successful save. */
+function getCreatedName(state: unknown): string | null {
+  if (typeof state === 'object' && state !== null && 'createdName' in state) {
+    const { createdName } = state
+    return typeof createdName === 'string' ? createdName : null
+  }
+  return null
+}
 
 // HU-2.2 (listado y búsqueda) is the next increment; this is the entry point.
 export function EmployeesPage() {
+  const createdName = getCreatedName(useLocation().state)
+
   return (
     <section>
       <div className="page-header">
@@ -16,10 +27,20 @@ export function EmployeesPage() {
         </Link>
       </div>
 
+      {createdName !== null && (
+        <div className="alert alert-success" role="status">
+          <IconCheck size={20} />
+          <div className="alert-body">
+            <strong>Empleado registrado.</strong>
+            <span>{createdName} quedó registrado con estado ACTIVO.</span>
+          </div>
+        </div>
+      )}
+
       <div className="card empty-state">
         <IconUsers size={32} />
-        <h2>Aún no hay empleados registrados</h2>
-        <p className="muted">El listado con búsqueda llega en la HU-2.2.</p>
+        <h2>El listado de empleados llega en la HU-2.2</h2>
+        <p className="muted">Por ahora puedes registrar nuevos empleados.</p>
       </div>
     </section>
   )
