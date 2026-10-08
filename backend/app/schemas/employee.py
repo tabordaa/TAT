@@ -2,6 +2,8 @@
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from typing_extensions import Self  # typing.Self needs Python 3.11+ (you're on 3.10)
 
@@ -26,11 +28,13 @@ class EmployeeCreate(BaseModel):
     last_names: str = Field(min_length=1, max_length=100)
     document_type: DocumentType
     document_number: str = Field(pattern=r"^[A-Za-z0-9-]{4,20}$")
-    email: EmailStr | None = None
+    email: EmailStr
     phone: str | None = Field(default=None, max_length=30)
 
     position: str = Field(min_length=1, max_length=120)
-    area: str | None = Field(default=None, max_length=120)
+    area: str = Field(min_length=1, max_length=120)
+    # Decimal (not float) so cents are exact; serialized as a JSON string.
+    salary: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     contract_type: ContractType
     start_date: date
     end_date: date | None = None
@@ -53,10 +57,11 @@ class EmployeeResponse(BaseModel):
     last_names: str
     document_type: DocumentType
     document_number: str
-    email: str | None
+    email: str
     phone: str | None
     position: str
-    area: str | None
+    area: str
+    salary: Decimal
     contract_type: ContractType
     start_date: date
     end_date: date | None
