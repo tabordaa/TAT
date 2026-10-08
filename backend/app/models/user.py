@@ -35,6 +35,9 @@ class User(Base):
         default=UserRole.HR,
     )
     is_active: Mapped[bool] = mapped_column(default=True)
+    # Incremented on logout. Every JWT carries the version it was issued with
+    # ("ver" claim); tokens with an older version are rejected -> real revocation.
+    token_version: Mapped[int] = mapped_column(default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
