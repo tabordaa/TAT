@@ -1,12 +1,19 @@
-"""HU-2.1 Employee registration."""
+"""HU-2.1 Employee registration and HU-2.2 directory (list and search)."""
 
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, DbSession
 from app.models.employee import Employee, EmployeeStatus
-from app.schemas.employee import EmployeeCreate, EmployeeResponse
+from app.schemas.employee import (
+    EmployeeCreate,
+    EmployeeListItem,
+    EmployeeListResponse,
+    EmployeeResponse,
+)
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
@@ -77,3 +84,59 @@ def create_employee(
 
     db.refresh(employee)
     return employee
+
+
+def _like_pattern(term: str) -> str:
+    """Contains-match pattern for ILIKE, with the user's % and _ taken literally."""
+    escaped = term.replace("\\", r"\\").replace("%", r"\%").replace("_", r"\_")
+    return f"%{escaped}%"
+
+
+@router.get("", response_model=EmployeeListResponse)
+def list_employees(
+    db: DbSession,
+    current_user: CurrentUser,  # requires a valid session (401 otherwise)
+    q: Annotated[
+        str | None,
+        Query(max_length=100, description="Words to find in names or document number"),
+    ] = None,
+    employee_status: Annotated[
+        EmployeeStatus | None,
+        Query(alias="status", description="Filter by ACTIVO or INACTIVO; omit for all"),
+    ] = None,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> EmployeeListResponse:
+    conditions = []
+
+    # Every word must match the first names, last names or document number
+    # ("ana perez" finds Ana Maria PEREZ), case-insensitively.
+    for term in (q or "").split():
+        pattern = _like_pattern(term)
+        conditions.append(
+            or_(
+                Employee.first_names.ilike(pattern, escape="\\"),
+                Employee.last_names.ilike(pattern, escape="\\"),
+                Employee.document_number.ilike(pattern, escape="\\"),
+            )
+        )
+    if employee_status is not None:
+        conditions.append(Employee.status == employee_status)
+
+    total = db.scalar(select(func.count()).select_from(Employee).where(*conditions)) or 0
+
+    rows = db.scalars(
+        select(Employee)
+        .where(*conditions)
+        # Deterministic order (id breaks ties) so pages never repeat or skip rows.
+        .order_by(Employee.last_names, Employee.first_names, Employee.id)
+        .offset((page - 1) * size)
+        .limit(size)
+    ).all()
+
+    return EmployeeListResponse(
+        items=[EmployeeListItem.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        size=size,
+    )

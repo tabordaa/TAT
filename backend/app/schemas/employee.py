@@ -49,6 +49,32 @@ class EmployeeCreate(BaseModel):
         return self
 
 
+class EmployeeListItem(BaseModel):
+    """Row of the employee directory (HU-2.2).
+
+    Deliberately WITHOUT salary or email: a directory shows the minimum needed
+    to find someone. The detail view (HU-2.3) shows the full record.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    first_names: str
+    last_names: str
+    document_type: DocumentType
+    document_number: str
+    position: str
+    area: str
+    status: EmployeeStatus
+
+
+class EmployeeListResponse(BaseModel):
+    items: list[EmployeeListItem]
+    total: int  # rows matching the filters, across ALL pages
+    page: int
+    size: int
+
+
 class EmployeeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
