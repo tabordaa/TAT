@@ -90,8 +90,10 @@ export interface EmployeeListResponse {
   size: number
 }
 
-/** Query of GET /employees. An empty status means "all". */
+/** Query of GET /employees. An empty status means "all"; an empty q means no search. */
 export interface EmployeeListQuery {
+  /** Words to find in names or document number. Empty means no search. */
+  q: string
   status: EmployeeStatus | ''
   page: number
   size: number
