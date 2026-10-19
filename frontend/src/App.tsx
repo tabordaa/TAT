@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
+import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
 import { EmployeesPage } from './pages/EmployeesPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterEmployeePage } from './pages/RegisterEmployeePage'
@@ -19,6 +20,7 @@ export function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/empleados" element={<EmployeesPage />} />
               <Route path="/empleados/nuevo" element={<RegisterEmployeePage />} />
+              <Route path="/empleados/:employeeId" element={<EmployeeDetailPage />} />
             </Route>
           </Route>
 
