@@ -2,10 +2,21 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import { Link, useLocation } from 'react-router'
 import axios from 'axios'
 import { listEmployees } from '../api/employees'
-import { IconAlert, IconCheck, IconUserPlus, IconUsers } from '../components/Icons'
+import {
+  IconAlert,
+  IconCheck,
+  IconClose,
+  IconSearch,
+  IconUserPlus,
+  IconUsers,
+} from '../components/Icons'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import type { EmployeeListResponse, EmployeeStatus } from '../types/employee'
 
 const PAGE_SIZE = 10
+// Wait for a short pause in typing before asking the API (HU-2.2 CA02).
+const SEARCH_DEBOUNCE_MS = 300
+const MAX_SEARCH_LENGTH = 100 // same limit as the API
 
 const STATUS_LABELS: Record<EmployeeStatus, string> = {
   ACTIVO: 'Activo',
@@ -39,14 +50,26 @@ type Load =
   | { phase: 'error' }
   | { phase: 'ready'; data: EmployeeListResponse }
 
-// HU-2.2: directory with status filter and pagination (search arrives in the next task).
+// HU-2.2: directory with search, status filter and pagination.
 export function EmployeesPage() {
   const createdName = getCreatedName(useLocation().state)
 
+  // searchText follows every keystroke (so the input feels instant); appliedQ is
+  // what the API is actually asked, updated only after the debounce.
+  const [searchText, setSearchText] = useState('')
+  const [appliedQ, setAppliedQ] = useState('')
   const [status, setStatus] = useState<StatusFilter>('')
   const [page, setPage] = useState(1)
   const [load, setLoad] = useState<Load>({ phase: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
+  const debouncedText = useDebouncedValue(searchText, SEARCH_DEBOUNCE_MS)
+
+  useEffect(() => {
+    // Both updates are batched into one render, so a new search triggers a
+    // single request, always starting from the first page.
+    setAppliedQ(debouncedText.trim())
+    setPage(1)
+  }, [debouncedText])
 
   useEffect(() => {
     // One request per change; the cleanup cancels a stale one so a slow answer
@@ -54,7 +77,7 @@ export function EmployeesPage() {
     const controller = new AbortController()
     setLoad({ phase: 'loading' })
 
-    listEmployees({ status, page, size: PAGE_SIZE }, controller.signal)
+    listEmployees({ q: appliedQ, status, page, size: PAGE_SIZE }, controller.signal)
       .then((data) => setLoad({ phase: 'ready', data }))
       .catch((error: unknown) => {
         if (axios.isCancel(error)) return
@@ -62,7 +85,7 @@ export function EmployeesPage() {
       })
 
     return () => controller.abort()
-  }, [status, page, reloadCount])
+  }, [appliedQ, status, page, reloadCount])
 
   function handleStatusChange(event: ChangeEvent<HTMLSelectElement>) {
     const value = event.target.value
@@ -74,7 +97,7 @@ export function EmployeesPage() {
 
   const data = load.phase === 'ready' ? load.data : null
   const totalPages = data === null ? 1 : Math.max(1, Math.ceil(data.total / data.size))
-  const isFiltered = status !== ''
+  const isFiltered = status !== '' || appliedQ !== ''
 
   return (
     <section>
@@ -101,6 +124,33 @@ export function EmployeesPage() {
 
       <div className="card table-card">
         <div className="toolbar">
+          <div className="field toolbar-search" role="search">
+            <div className="field-label-row">
+              <label htmlFor="employee-search">Buscar</label>
+            </div>
+            <div className="search-box">
+              <IconSearch size={16} />
+              <input
+                id="employee-search"
+                type="search"
+                value={searchText}
+                maxLength={MAX_SEARCH_LENGTH}
+                placeholder="Nombre o número de documento"
+                autoComplete="off"
+                onChange={(event) => setSearchText(event.target.value)}
+              />
+              {searchText !== '' && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  aria-label="Borrar búsqueda"
+                  onClick={() => setSearchText('')}
+                >
+                  <IconClose size={14} />
+                </button>
+              )}
+            </div>
+          </div>
           <div className="field toolbar-field">
             <div className="field-label-row">
               <label htmlFor="status-filter">Estado</label>
@@ -145,7 +195,7 @@ export function EmployeesPage() {
             <h2>{isFiltered ? 'Sin resultados' : 'Aún no hay empleados'}</h2>
             <p className="muted">
               {isFiltered
-                ? 'Ningún empleado coincide con el filtro seleccionado.'
+                ? 'Ningún empleado coincide con la búsqueda o el filtro seleccionado.'
                 : 'Registra el primer empleado para verlo aquí.'}
             </p>
           </div>
