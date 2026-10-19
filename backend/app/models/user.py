@@ -54,6 +54,9 @@ class User(Base):
     # Incremented on logout. Every JWT carries the version it was issued with
     # ("ver" claim); tokens with an older version are rejected -> real revocation.
     token_version: Mapped[int] = mapped_column(default=0, server_default="0")
+    # True while the account still uses a temporary password handed out by an
+    # admin. HU 1.2 will force the change screen; here we only store the flag.
+    must_change_password: Mapped[bool] = mapped_column(default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

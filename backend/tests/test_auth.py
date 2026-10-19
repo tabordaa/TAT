@@ -153,3 +153,24 @@ def test_user_can_log_in_again_after_logout(client: TestClient, hr_user: User) -
 
     assert _login(client, hr_user.email).status_code == 200
     assert client.get("/auth/me").status_code == 200
+
+
+# --- temporary-password flag (HU-1.4) ----------------------------------------
+
+
+def test_regular_accounts_are_not_flagged_for_a_password_change(
+    auth_client: TestClient,
+) -> None:
+    assert auth_client.get("/auth/me").json()["must_change_password"] is False
+
+
+def test_an_account_with_a_temporary_password_reports_the_flag(
+    client: TestClient, db: Session, password_hash: str
+) -> None:
+    user = make_user(db, password_hash, must_change_password=True)
+
+    login = _login(client, user.email)
+
+    assert login.status_code == 200
+    assert login.json()["must_change_password"] is True
+    assert client.get("/auth/me").json()["must_change_password"] is True

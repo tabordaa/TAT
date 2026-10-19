@@ -23,3 +23,4 @@ class UserResponse(BaseModel):
     full_name: str
     role: UserRole
     employee_id: uuid.UUID | None = None
+    must_change_password: bool = False

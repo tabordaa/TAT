@@ -7,6 +7,9 @@ export interface User {
   email: string
   full_name: string
   role: UserRole
+  employee_id: string | null
+  /** True while the account still uses a temporary password (HU 1.2 will force the change). */
+  must_change_password: boolean
 }
 
 export interface LoginCredentials {

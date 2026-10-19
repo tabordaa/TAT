@@ -126,6 +126,7 @@ def make_user(
     password_hash: str,
     role: UserRole = UserRole.HR,
     is_active: bool = True,
+    must_change_password: bool = False,
 ) -> User:
     """Insert a user with a unique email (random suffix) and return it."""
     user = User(
@@ -134,6 +135,7 @@ def make_user(
         hashed_password=password_hash,
         role=role,
         is_active=is_active,
+        must_change_password=must_change_password,
     )
     db.add(user)
     db.commit()  # only releases the SAVEPOINT (see `db` fixture)
