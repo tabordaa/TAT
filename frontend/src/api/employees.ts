@@ -17,10 +17,11 @@ export async function listEmployees(
   signal?: AbortSignal,
 ): Promise<EmployeeListResponse> {
   const { data } = await api.get<EmployeeListResponse>('/employees', {
-    // An empty status is simply not sent: the API then returns everyone.
+    // Empty filters are simply not sent: the API then applies no filter.
     params: {
       page: query.page,
       size: query.size,
+      ...(query.q !== '' && { q: query.q }),
       ...(query.status !== '' && { status: query.status }),
     },
     signal,
