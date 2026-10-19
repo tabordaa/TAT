@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
-import { Link, useLocation } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import axios from 'axios'
 import { listEmployees } from '../api/employees'
 import {
@@ -53,6 +53,7 @@ type Load =
 // HU-2.2: directory with search, status filter and pagination.
 export function EmployeesPage() {
   const createdName = getCreatedName(useLocation().state)
+  const navigate = useNavigate()
 
   // searchText follows every keystroke (so the input feels instant); appliedQ is
   // what the API is actually asked, updated only after the debounce.
@@ -215,11 +216,19 @@ export function EmployeesPage() {
               </thead>
               <tbody>
                 {data.items.map((employee) => (
-                  <tr key={employee.id}>
+                  // The whole row is clickable for mouse users; the name is a real link
+                  // so keyboard and screen-reader users can open the detail too.
+                  <tr
+                    key={employee.id}
+                    className="row-clickable"
+                    onClick={() => void navigate(`/empleados/${employee.id}`)}
+                  >
                     <td>
-                      <span className="cell-strong">
-                        {employee.first_names} {employee.last_names}
-                      </span>
+                      <Link to={`/empleados/${employee.id}`} className="cell-link">
+                        <span className="cell-strong">
+                          {employee.first_names} {employee.last_names}
+                        </span>
+                      </Link>
                       <span className="cell-sub">{employee.area}</span>
                     </td>
                     <td>
