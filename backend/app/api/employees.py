@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import DbSession, HrStaff
 from app.models.employee import Employee, EmployeeStatus
 from app.schemas.employee import (
     EmployeeCreate,
@@ -40,7 +40,7 @@ def _conflict(field: str, message: str) -> HTTPException:
 def create_employee(
     data: EmployeeCreate,
     db: DbSession,
-    current_user: CurrentUser,  # requires a valid session (401 otherwise)
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
 ) -> Employee:
     document_number = data.document_number.upper()
     email = str(data.email).lower()
@@ -96,7 +96,7 @@ def _like_pattern(term: str) -> str:
 @router.get("", response_model=EmployeeListResponse)
 def list_employees(
     db: DbSession,
-    current_user: CurrentUser,  # requires a valid session (401 otherwise)
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
     q: Annotated[
         str | None,
         Query(max_length=100, description="Words to find in names or document number"),
@@ -147,7 +147,7 @@ def list_employees(
 def get_employee(
     employee_id: uuid.UUID,  # a malformed id is rejected with 422 before reaching us
     db: DbSession,
-    current_user: CurrentUser,  # requires a valid session (401 otherwise)
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
 ) -> Employee:
     """HU-2.3: full record of one employee (any status, INACTIVO included)."""
     employee = db.get(Employee, employee_id)

@@ -1,6 +1,7 @@
-"""Reusable FastAPI dependencies (DB session, authenticated user)."""
+"""Reusable FastAPI dependencies (DB session, authenticated user, role checks)."""
 
 import uuid
+from collections.abc import Callable
 from typing import Annotated
 
 import jwt
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.security import decode_access_token
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 
 DbSession = Annotated[Session, Depends(get_db)]
 
@@ -60,3 +61,32 @@ def get_current_user(request: Request, db: DbSession) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def require_role(*allowed: UserRole) -> Callable[[User], User]:
+    """Dependency factory: only users whose role is in `allowed` get through.
+
+    - No valid session -> 401 (raised by get_current_user, which runs first).
+    - Valid session but the wrong role -> 403.
+
+    The 403 message is generic on purpose: it does not list which roles WOULD
+    be accepted, so it tells an attacker nothing about the permission model.
+    Usage: `user: Annotated[User, Depends(require_role(UserRole.ADMIN))]`.
+    """
+    allowed_roles = frozenset(allowed)
+
+    def dependency(user: CurrentUser) -> User:
+        if user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to perform this action",
+            )
+        return user
+
+    return dependency
+
+
+# Who may use the employee directory (it exposes salary and personal data).
+# Conservative choice: MANAGER and EMPLOYEE get no access until the product
+# decides what each of them may see.
+HrStaff = Annotated[User, Depends(require_role(UserRole.ADMIN, UserRole.HR))]
