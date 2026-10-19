@@ -118,3 +118,11 @@ class EmployeeCreatedResponse(EmployeeResponse):
     """Response of POST /employees: the employee plus the optional new account."""
 
     account: AccountCreated | None = None
+
+
+class EmployeeStats(BaseModel):
+    """Headline numbers for the dashboard (HU-6.1)."""
+
+    total: int  # every employee ever registered (history included)
+    active: int
+    inactive: int
