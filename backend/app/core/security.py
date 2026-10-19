@@ -1,5 +1,6 @@
 """Password hashing (Argon2) and JWT creation/verification."""
 
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -15,6 +16,15 @@ password_hash = PasswordHash.recommended()
 # time. Otherwise an attacker could measure response times to discover which
 # emails are registered (user enumeration via timing attack).
 DUMMY_HASH = password_hash.hash("timing-attack-dummy-password")
+
+
+def generate_temporary_password() -> str:
+    """A random one-time password (16 URL-safe characters, ~96 bits of entropy).
+
+    Made with the `secrets` module (cryptographically secure), never `random`.
+    The caller must show it once and store only its hash.
+    """
+    return secrets.token_urlsafe(12)
 
 
 def hash_password(password: str) -> str:
