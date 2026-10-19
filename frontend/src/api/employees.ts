@@ -5,6 +5,7 @@ import type {
   EmployeeCreatePayload,
   EmployeeListQuery,
   EmployeeListResponse,
+  EmployeeStats,
 } from '../types/employee'
 
 /** GET /employees/{id}. Rejects with an axios 404 error when the employee does not exist. */
@@ -33,5 +34,11 @@ export async function listEmployees(
     },
     signal,
   })
+  return data
+}
+
+/** GET /employees/stats: headline numbers for the dashboard. */
+export async function getEmployeeStats(signal?: AbortSignal): Promise<EmployeeStats> {
+  const { data } = await api.get<EmployeeStats>('/employees/stats', { signal })
   return data
 }
