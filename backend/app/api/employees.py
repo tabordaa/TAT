@@ -1,5 +1,6 @@
-"""HU-2.1 Employee registration and HU-2.2 directory (list and search)."""
+"""HU-2.1 registration, HU-2.2 directory (list and search), HU-2.3 detail."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -140,3 +141,19 @@ def list_employees(
         page=page,
         size=size,
     )
+
+
+@router.get("/{employee_id}", response_model=EmployeeResponse)
+def get_employee(
+    employee_id: uuid.UUID,  # a malformed id is rejected with 422 before reaching us
+    db: DbSession,
+    current_user: CurrentUser,  # requires a valid session (401 otherwise)
+) -> Employee:
+    """HU-2.3: full record of one employee (any status, INACTIVO included)."""
+    employee = db.get(Employee, employee_id)
+    if employee is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee not found",
+        )
+    return employee
