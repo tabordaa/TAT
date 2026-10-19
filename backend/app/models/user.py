@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -37,6 +37,20 @@ class User(Base):
         default=UserRole.HR,
     )
     is_active: Mapped[bool] = mapped_column(default=True)
+    # Optional link to the employee record behind this account (a user may exist
+    # without one, e.g. the first ADMIN). UNIQUE: one account per employee;
+    # Postgres allows many NULLs. If the employee row is ever deleted the
+    # account stays and just loses the link.
+    employee_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(
+            "employees.id",
+            ondelete="SET NULL",
+            name="fk_users_employee_id",
+            use_alter=True,  # employees.created_by_id points back at users: break the cycle
+        ),
+        unique=True,
+        default=None,
+    )
     # Incremented on logout. Every JWT carries the version it was issued with
     # ("ver" claim); tokens with an older version are rejected -> real revocation.
     token_version: Mapped[int] = mapped_column(default=0, server_default="0")

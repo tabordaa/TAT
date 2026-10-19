@@ -22,3 +22,4 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
+    employee_id: uuid.UUID | None = None
