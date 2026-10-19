@@ -65,6 +65,7 @@ class EmployeeListItem(BaseModel):
     document_number: str
     position: str
     area: str
+    start_date: date
     status: EmployeeStatus
 
 
