@@ -3,14 +3,18 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession, HrStaff
+from app.core.security import generate_temporary_password, hash_password
 from app.models.employee import Employee, EmployeeStatus
+from app.models.user import User, UserRole
 from app.schemas.employee import (
+    AccountCreated,
     EmployeeCreate,
+    EmployeeCreatedResponse,
     EmployeeListItem,
     EmployeeListResponse,
     EmployeeResponse,
@@ -20,11 +24,14 @@ router = APIRouter(prefix="/employees", tags=["employees"])
 
 DUPLICATE_DOCUMENT = "An active employee with this document already exists"
 DUPLICATE_EMAIL = "An active employee with this email already exists"
+DUPLICATE_ACCOUNT = "An access account with this email already exists"
+ACCOUNT_ADMIN_ONLY = "Only an administrator can create access accounts"
 
 # Partial unique index name -> (field reported to the client, message).
 _UNIQUE_VIOLATIONS = {
     "uq_employees_active_document": ("document_number", DUPLICATE_DOCUMENT),
     "uq_employees_active_email": ("email", DUPLICATE_EMAIL),
+    "ix_users_email": ("email", DUPLICATE_ACCOUNT),
 }
 
 
@@ -36,12 +43,18 @@ def _conflict(field: str, message: str) -> HTTPException:
     )
 
 
-@router.post("", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=EmployeeCreatedResponse, status_code=status.HTTP_201_CREATED)
 def create_employee(
     data: EmployeeCreate,
+    response: Response,
     db: DbSession,
     current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
-) -> Employee:
+) -> EmployeeCreatedResponse:
+    # Creating a login account is more sensitive than registering a person:
+    # HR may register employees, only an ADMIN may hand out credentials.
+    if data.account_role is not None and current_user.role is not UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=ACCOUNT_ADMIN_ONLY)
+
     document_number = data.document_number.upper()
     email = str(data.email).lower()
 
@@ -62,8 +75,13 @@ def create_employee(
     if email_taken is not None:
         raise _conflict("email", DUPLICATE_EMAIL)
 
+    if data.account_role is not None:
+        account_taken = db.scalar(select(User.id).where(User.email == email))
+        if account_taken is not None:
+            raise _conflict("email", DUPLICATE_ACCOUNT)
+
     employee = Employee(
-        **data.model_dump(exclude={"document_number", "email"}),
+        **data.model_dump(exclude={"document_number", "email", "account_role"}),
         document_number=document_number,
         email=email,
         status=EmployeeStatus.ACTIVO,  # set by the server, never by the client
@@ -71,9 +89,30 @@ def create_employee(
     )
     db.add(employee)
 
-    # 2) The partial unique indexes are the real guarantee: if two requests
-    #    pass the checks above at the same time, the database rejects one.
+    account: AccountCreated | None = None
+    # 2) The unique indexes are the real guarantee: if two requests pass the
+    #    checks above at the same time, the database rejects one. Employee and
+    #    account are saved in ONE transaction: either both exist or neither.
     try:
+        if data.account_role is not None:
+            db.flush()  # assigns employee.id so the account can point at it
+            temporary_password = generate_temporary_password()
+            db.add(
+                User(
+                    email=email,
+                    full_name=f"{employee.first_names} {employee.last_names}",
+                    hashed_password=hash_password(temporary_password),  # never the plain text
+                    role=data.account_role,
+                    must_change_password=True,
+                    employee_id=employee.id,
+                )
+            )
+            account = AccountCreated(
+                email=email,
+                role=data.account_role,
+                temporary_password=temporary_password,
+                must_change_password=True,
+            )
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -84,7 +123,12 @@ def create_employee(
         raise
 
     db.refresh(employee)
-    return employee
+    if account is not None:
+        # The body holds a credential: keep browsers and proxies from caching it.
+        response.headers["Cache-Control"] = "no-store"
+    return EmployeeCreatedResponse(
+        **EmployeeResponse.model_validate(employee).model_dump(), account=account
+    )
 
 
 def _like_pattern(term: str) -> str:

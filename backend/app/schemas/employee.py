@@ -13,6 +13,7 @@ from app.models.employee import (
     DocumentType,
     EmployeeStatus,
 )
+from app.models.user import UserRole
 
 
 class EmployeeCreate(BaseModel):
@@ -38,6 +39,10 @@ class EmployeeCreate(BaseModel):
     contract_type: ContractType
     start_date: date
     end_date: date | None = None
+
+    # Optional (HU-1.4): also create a login account with this role. Only an
+    # ADMIN may use it; the server generates the temporary password.
+    account_role: UserRole | None = None
 
     @model_validator(mode="after")
     def _check_dates(self) -> Self:
@@ -94,3 +99,22 @@ class EmployeeResponse(BaseModel):
     end_date: date | None
     status: EmployeeStatus
     created_at: datetime
+
+
+class AccountCreated(BaseModel):
+    """The login account created together with an employee (HU-1.4).
+
+    `temporary_password` is in plain text only in this one response: the
+    database keeps just its hash, so it can never be shown again.
+    """
+
+    email: str
+    role: UserRole
+    temporary_password: str
+    must_change_password: bool
+
+
+class EmployeeCreatedResponse(EmployeeResponse):
+    """Response of POST /employees: the employee plus the optional new account."""
+
+    account: AccountCreated | None = None
