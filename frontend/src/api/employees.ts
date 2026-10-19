@@ -6,6 +6,12 @@ import type {
   EmployeeListResponse,
 } from '../types/employee'
 
+/** GET /employees/{id}. Rejects with an axios 404 error when the employee does not exist. */
+export async function getEmployee(id: string, signal?: AbortSignal): Promise<Employee> {
+  const { data } = await api.get<Employee>(`/employees/${encodeURIComponent(id)}`, { signal })
+  return data
+}
+
 export async function createEmployee(payload: EmployeeCreatePayload): Promise<Employee> {
   const { data } = await api.post<Employee>('/employees', payload)
   return data
