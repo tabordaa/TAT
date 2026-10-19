@@ -18,6 +18,7 @@ from app.schemas.employee import (
     EmployeeListItem,
     EmployeeListResponse,
     EmployeeResponse,
+    EmployeeStats,
 )
 
 router = APIRouter(prefix="/employees", tags=["employees"])
@@ -185,6 +186,23 @@ def list_employees(
         page=page,
         size=size,
     )
+
+
+# NOTE: declared BEFORE "/{employee_id}", otherwise "stats" would be read as an id.
+@router.get("/stats", response_model=EmployeeStats)
+def get_employee_stats(
+    db: DbSession,
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+) -> EmployeeStats:
+    """HU-6.1: totals computed by the database in a single query."""
+    row = db.execute(
+        select(
+            func.count(Employee.id),
+            func.count(Employee.id).filter(Employee.status == EmployeeStatus.ACTIVO),
+            func.count(Employee.id).filter(Employee.status == EmployeeStatus.INACTIVO),
+        )
+    ).one()
+    return EmployeeStats(total=row[0], active=row[1], inactive=row[2])
 
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)
