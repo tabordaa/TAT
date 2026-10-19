@@ -1,6 +1,7 @@
 import { api } from './client'
 import type {
   Employee,
+  EmployeeCreated,
   EmployeeCreatePayload,
   EmployeeListQuery,
   EmployeeListResponse,
@@ -12,8 +13,8 @@ export async function getEmployee(id: string, signal?: AbortSignal): Promise<Emp
   return data
 }
 
-export async function createEmployee(payload: EmployeeCreatePayload): Promise<Employee> {
-  const { data } = await api.post<Employee>('/employees', payload)
+export async function createEmployee(payload: EmployeeCreatePayload): Promise<EmployeeCreated> {
+  const { data } = await api.post<EmployeeCreated>('/employees', payload)
   return data
 }
 

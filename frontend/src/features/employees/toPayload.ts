@@ -27,5 +27,7 @@ export function toEmployeePayload(values: EmployeeFormValues): EmployeeCreatePay
     contract_type: values.contractType,
     start_date: values.startDate,
     end_date: values.endDate === '' ? null : values.endDate,
+    // Only sent when a role was chosen (the section is visible to ADMIN only).
+    ...(values.accountRole !== '' && { account_role: values.accountRole }),
   }
 }
