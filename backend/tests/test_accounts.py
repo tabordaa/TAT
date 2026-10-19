@@ -1,5 +1,7 @@
 """HU-1.4 Access accounts created together with an employee."""
 
+import logging
+import re
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -9,6 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.security import generate_temporary_password, verify_password
 from app.models.employee import Employee
 from app.models.user import User, UserRole
 from tests.conftest import TEST_PASSWORD, make_user
@@ -251,3 +254,90 @@ def test_the_new_employee_is_linked_to_exactly_one_account(
     ).all()
 
     assert len(linked) == 1
+
+
+# --- extra guarantees (task 93) ---------------------------------------------
+
+
+def test_generated_passwords_are_long_unique_and_url_safe() -> None:
+    passwords = {generate_temporary_password() for _ in range(200)}
+
+    assert len(passwords) == 200  # no repeats in 200 draws
+    for password in passwords:
+        assert len(password) >= 12
+        assert re.fullmatch(r"[A-Za-z0-9_-]+", password)
+
+
+def test_the_stored_hash_verifies_only_the_real_password(
+    admin_client: TestClient, db: Session, make_employee_payload: PayloadFactory
+) -> None:
+    account = admin_client.post(
+        "/employees", json=make_employee_payload(account_role="HR")
+    ).json()["account"]
+    user = db.scalar(select(User).where(User.email == account["email"]))
+
+    assert user is not None
+    assert verify_password(account["temporary_password"], user.hashed_password)
+    assert not verify_password("not-the-password", user.hashed_password)
+
+
+def test_a_wrong_password_does_not_log_in_the_new_account(
+    admin_client: TestClient, make_employee_payload: PayloadFactory
+) -> None:
+    account = admin_client.post(
+        "/employees", json=make_employee_payload(account_role="HR")
+    ).json()["account"]
+
+    admin_client.cookies.clear()
+    response = admin_client.post(
+        "/auth/login", json={"email": account["email"], "password": "wrong-password"}
+    )
+
+    assert response.status_code == 401
+
+
+def test_the_temporary_password_is_never_logged(
+    admin_client: TestClient,
+    caplog: pytest.LogCaptureFixture,
+    make_employee_payload: PayloadFactory,
+) -> None:
+    with caplog.at_level(logging.DEBUG):
+        account = admin_client.post(
+            "/employees", json=make_employee_payload(account_role="HR")
+        ).json()["account"]
+
+    assert account["temporary_password"] not in caplog.text
+
+
+def test_manager_and_employee_roles_cannot_create_accounts(
+    client: TestClient,
+    db: Session,
+    password_hash: str,
+    make_employee_payload: PayloadFactory,
+) -> None:
+    for role in (UserRole.MANAGER, UserRole.EMPLOYEE):
+        user = make_user(db, password_hash, role)
+        client.cookies.clear()
+        client.post(
+            "/auth/login", json={"email": user.email, "password": TEST_PASSWORD}
+        )
+
+        response = client.post(
+            "/employees", json=make_employee_payload(account_role="HR")
+        )
+
+        assert response.status_code == 403
+
+
+def test_the_employee_is_audited_to_the_admin_who_created_it(
+    admin_client: TestClient, db: Session, make_employee_payload: PayloadFactory
+) -> None:
+    created = admin_client.post(
+        "/employees", json=make_employee_payload(account_role="HR")
+    ).json()
+    admin_id = uuid.UUID(admin_client.get("/auth/me").json()["id"])
+
+    employee = db.get(Employee, uuid.UUID(created["id"]))
+
+    assert employee is not None
+    assert employee.created_by_id == admin_id
