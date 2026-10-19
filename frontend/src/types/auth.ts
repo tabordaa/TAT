@@ -1,6 +1,6 @@
 // Mirrors backend/app/schemas/auth.py (the API contract).
 
-export type UserRole = 'ADMIN' | 'HR'
+export type UserRole = 'ADMIN' | 'MANAGER' | 'HR' | 'EMPLOYEE'
 
 export interface User {
   id: string

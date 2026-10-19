@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import type { UserRole } from '../types/auth'
 import { BrandLogo } from '../components/BrandLogo'
 import {
   IconChart,
@@ -11,7 +12,12 @@ import {
   IconUsers,
 } from '../components/Icons'
 
-const ROLE_LABELS = { ADMIN: 'Administrador', HR: 'Recursos Humanos' } as const
+const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: 'Administrador',
+  MANAGER: 'Gerente',
+  HR: 'Recursos Humanos',
+  EMPLOYEE: 'Empleado',
+}
 
 // HU-1.3: "Cerrar sesión" is visible on every protected page (it lives in the layout).
 export function AppLayout() {
