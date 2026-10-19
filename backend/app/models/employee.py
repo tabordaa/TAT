@@ -71,6 +71,27 @@ class Employee(Base):
             unique=True,
             postgresql_where=text("status = 'ACTIVO'"),
         ),
+        # Search indexes for the directory (HU-2.2). The trigram ones are GIN
+        # indexes so ILIKE '%term%' does not scan the whole table.
+        Index(
+            "ix_employees_first_names_trgm",
+            "first_names",
+            postgresql_using="gin",
+            postgresql_ops={"first_names": "extensions.gin_trgm_ops"},
+        ),
+        Index(
+            "ix_employees_last_names_trgm",
+            "last_names",
+            postgresql_using="gin",
+            postgresql_ops={"last_names": "extensions.gin_trgm_ops"},
+        ),
+        Index(
+            "ix_employees_document_number_trgm",
+            "document_number",
+            postgresql_using="gin",
+            postgresql_ops={"document_number": "extensions.gin_trgm_ops"},
+        ),
+        Index("ix_employees_status_last_first", "status", "last_names", "first_names"),
         CheckConstraint("salary > 0", name="ck_employees_salary_positive"),
         CheckConstraint(
             "end_date IS NULL OR end_date >= start_date",
