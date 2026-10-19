@@ -126,3 +126,9 @@ export const IconInfo = (p: IconProps) => (
     <path d="M12 8h.01" />
   </Svg>
 )
+export const IconSearch = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </Svg>
+)

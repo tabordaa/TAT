@@ -37,6 +37,7 @@ def test_list_returns_page_metadata_and_no_sensitive_fields(
     item = body["items"][0]
     assert item["id"] == created.json()["id"]
     assert item["status"] == "ACTIVO"
+    assert item["start_date"] == "2026-01-15"
     # A directory row must not leak salary or email.
     assert "salary" not in item
     assert "email" not in item

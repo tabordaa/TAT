@@ -67,3 +67,32 @@ export interface Employee extends EmployeeCreatePayload {
   status: EmployeeStatus
   created_at: string
 }
+
+/** One row of GET /employees (mirrors backend EmployeeListItem; no salary or email). */
+export interface EmployeeListItem {
+  id: string
+  first_names: string
+  last_names: string
+  document_type: DocumentType
+  document_number: string
+  position: string
+  area: string
+  start_date: string
+  status: EmployeeStatus
+}
+
+/** Response of GET /employees (mirrors backend EmployeeListResponse). */
+export interface EmployeeListResponse {
+  items: EmployeeListItem[]
+  /** Rows matching the filters across ALL pages. */
+  total: number
+  page: number
+  size: number
+}
+
+/** Query of GET /employees. An empty status means "all". */
+export interface EmployeeListQuery {
+  status: EmployeeStatus | ''
+  page: number
+  size: number
+}
