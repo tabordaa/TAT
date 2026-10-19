@@ -1,3 +1,5 @@
+import type { UserRole } from './auth'
+
 // HU-2.1 contract (frontend side). The backend schema will mirror it.
 
 export const DOCUMENT_TYPES = {
@@ -32,6 +34,8 @@ export interface EmployeeFormValues {
   contractType: ContractType | ''
   startDate: string
   endDate: string
+  /** Role of the access account to create together with the employee; '' = no account. */
+  accountRole: UserRole | ''
 }
 
 export type EmployeeFormErrors = Partial<Record<keyof EmployeeFormValues, string>>
@@ -53,6 +57,8 @@ export interface EmployeeCreatePayload {
   contract_type: ContractType
   start_date: string
   end_date: string | null
+  /** Optional (ADMIN only): also create an access account with this role. */
+  account_role?: UserRole
 }
 
 /** 409 body of POST /employees: which unique field is already taken. */
@@ -61,11 +67,25 @@ export interface EmployeeConflict {
   message: string
 }
 
-/** Response of POST /employees (mirrors backend EmployeeResponse). */
-export interface Employee extends EmployeeCreatePayload {
+/** Response of GET /employees/{id} (mirrors backend EmployeeResponse). */
+export interface Employee extends Omit<EmployeeCreatePayload, 'account_role'> {
   id: string
   status: EmployeeStatus
   created_at: string
+}
+
+/** Access account created together with an employee (HU-1.4). */
+export interface AccountCreated {
+  email: string
+  role: UserRole
+  /** Shown ONCE: the server keeps only its hash and cannot show it again. */
+  temporary_password: string
+  must_change_password: boolean
+}
+
+/** Response of POST /employees (mirrors backend EmployeeCreatedResponse). */
+export interface EmployeeCreated extends Employee {
+  account: AccountCreated | null
 }
 
 /** One row of GET /employees (mirrors backend EmployeeListItem; no salary or email). */

@@ -2,6 +2,14 @@
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'HR' | 'EMPLOYEE'
 
+/** UI labels for each role (the API and the database use the English values). */
+export const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: 'Administrador',
+  MANAGER: 'Gerente',
+  HR: 'Recursos Humanos',
+  EMPLOYEE: 'Empleado',
+}
+
 export interface User {
   id: string
   email: string

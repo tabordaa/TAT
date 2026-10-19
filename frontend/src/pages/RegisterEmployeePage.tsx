@@ -2,7 +2,9 @@ import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'reac
 import { Link, useNavigate } from 'react-router'
 import axios from 'axios'
 import { createEmployee } from '../api/employees'
+import { useAuth } from '../auth/useAuth'
 import { IconAlert, IconCheck, IconLock, IconSave, IconUserPlus, IconUsers } from '../components/Icons'
+import { ROLE_LABELS, type UserRole } from '../types/auth'
 import { toEmployeePayload } from '../features/employees/toPayload'
 import { validateEmployee } from '../features/employees/validateEmployee'
 import {
@@ -27,6 +29,7 @@ const INITIAL_VALUES: EmployeeFormValues = {
   contractType: '',
   startDate: '',
   endDate: '',
+  accountRole: '',
 }
 
 interface FieldProps {
@@ -75,6 +78,9 @@ function isEmployeeConflict(data: unknown): data is { detail: EmployeeConflict }
 
 export function RegisterEmployeePage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  // UX only: the API enforces it (403 for anyone but an ADMIN).
+  const canCreateAccounts = user?.role === 'ADMIN'
   const [values, setValues] = useState<EmployeeFormValues>(INITIAL_VALUES)
   const [errors, setErrors] = useState<EmployeeFormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -111,7 +117,12 @@ export function RegisterEmployeePage() {
           isEmployeeConflict(err.response.data) ? err.response.data.detail.field : 'document_number'
         setErrors(
           conflictField === 'email'
-            ? { email: 'Ya existe un empleado activo con este correo.' }
+            ? {
+                email:
+                  values.accountRole === ''
+                    ? 'Ya existe un empleado activo con este correo.'
+                    : 'Ya existe un empleado activo o una cuenta de acceso con este correo.',
+              }
             : { documentNumber: 'Ya existe un empleado activo con este número de documento.' },
         )
       } else if (axios.isAxiosError(err) && err.response?.status === 422) {
@@ -244,6 +255,37 @@ export function RegisterEmployeePage() {
             </p>
           </div>
         </div>
+
+        {canCreateAccounts && (
+          <>
+            <hr className="divider" />
+
+            <div className="form-section-header">
+              <p className="section-kicker">SECCIÓN 03</p>
+              <h2>Acceso al sistema</h2>
+              <p className="muted">
+                Opcional. Crea la cuenta de acceso junto con el registro del empleado.
+              </p>
+            </div>
+
+            <div className="form-grid">
+              <Field
+                id="accountRole"
+                label="Rol de la cuenta"
+                help="El correo del empleado será su usuario. El sistema genera una contraseña temporal de un solo uso."
+              >
+                <select id="accountRole" name="accountRole" value={values.accountRole} onChange={handleChange}>
+                  <option value="">No crear cuenta de acceso</option>
+                  {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </>
+        )}
 
         {submitError !== null && (
           <div className="alert alert-error" role="alert">
