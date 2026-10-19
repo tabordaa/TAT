@@ -129,7 +129,7 @@ def make_user(
 ) -> User:
     """Insert a user with a unique email (random suffix) and return it."""
     user = User(
-        email=f"test-{uuid.uuid4().hex[:12]}@tat-test.local",
+        email=f"test-{uuid.uuid4().hex[:12]}@tat-test.example.com",
         full_name="Test User",
         hashed_password=password_hash,
         role=role,
@@ -163,7 +163,7 @@ def employee_payload(**overrides: Any) -> dict[str, Any]:
         "last_names": "Prueba",
         "document_type": "CC",
         "document_number": f"T{suffix}",
-        "email": f"emp-{suffix}@tat-test.local",
+        "email": f"emp-{suffix}@tat-test.example.com",
         "phone": None,
         "position": "Analista",
         "area": "Tecnologia",

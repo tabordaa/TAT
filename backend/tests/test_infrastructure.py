@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from tests.conftest import TEST_PASSWORD
 
-LEFTOVER_MARKER = "@tat-test.local"
+LEFTOVER_MARKER = "@tat-test.example.com"
 
 
 def _count_test_users(db: Session) -> int:
