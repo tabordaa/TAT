@@ -88,6 +88,14 @@ export interface EmployeeCreated extends Employee {
   account: AccountCreated | null
 }
 
+/** Response of GET /employees/stats (mirrors backend EmployeeStats). */
+export interface EmployeeStats {
+  /** Every employee ever registered (history included). */
+  total: number
+  active: number
+  inactive: number
+}
+
 /** One row of GET /employees (mirrors backend EmployeeListItem; no salary or email). */
 export interface EmployeeListItem {
   id: string
