@@ -625,6 +625,17 @@ a {
   display: block;
   font-weight: 600;
 }
+.row-clickable {
+  cursor: pointer;
+}
+.cell-link {
+  display: block;
+  color: inherit;
+}
+.cell-link:hover .cell-strong {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
 .cell-sub {
   display: block;
   font-size: 0.82rem;
