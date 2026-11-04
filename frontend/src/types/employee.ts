@@ -88,6 +88,31 @@ export interface EmployeeCreated extends Employee {
   account: AccountCreated | null
 }
 
+/** One bar of a distribution chart (mirrors backend CountItem). */
+export interface CountItem {
+  name: string
+  count: number
+}
+
+/** A row of the dashboard's recent lists (mirrors backend PersonSummary). */
+export interface PersonSummary {
+  id: string
+  first_names: string
+  last_names: string
+  position: string
+  area: string
+  /** Hires: start date. Departures: contract end date, null if it was never set. */
+  event_date: string | null
+}
+
+/** Response of GET /employees/overview (mirrors backend EmployeeOverview). */
+export interface EmployeeOverview {
+  by_area: CountItem[]
+  by_position: CountItem[]
+  recent_hires: PersonSummary[]
+  recent_departures: PersonSummary[]
+}
+
 /** Response of GET /employees/stats (mirrors backend EmployeeStats). */
 export interface EmployeeStats {
   /** Every employee ever registered (history included). */

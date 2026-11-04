@@ -1,11 +1,13 @@
 """HU-2.1 registration, HU-2.2 directory (list and search), HU-2.3 detail."""
 
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.api.deps import DbSession, HrStaff
 from app.core.security import generate_temporary_password, hash_password
@@ -13,12 +15,15 @@ from app.models.employee import Employee, EmployeeStatus
 from app.models.user import User, UserRole
 from app.schemas.employee import (
     AccountCreated,
+    CountItem,
     EmployeeCreate,
     EmployeeCreatedResponse,
     EmployeeListItem,
     EmployeeListResponse,
+    EmployeeOverview,
     EmployeeResponse,
     EmployeeStats,
+    PersonSummary,
 )
 
 router = APIRouter(prefix="/employees", tags=["employees"])
@@ -27,6 +32,10 @@ DUPLICATE_DOCUMENT = "An active employee with this document already exists"
 DUPLICATE_EMAIL = "An active employee with this email already exists"
 DUPLICATE_ACCOUNT = "An access account with this email already exists"
 ACCOUNT_ADMIN_ONLY = "Only an administrator can create access accounts"
+
+RECENT_LIMIT = 5  # rows in the dashboard's "recent hires / departures" lists
+POSITIONS_SHOWN = 6  # biggest positions drawn as their own bar; the rest are grouped
+OTHERS_LABEL = "Otros"
 
 # Partial unique index name -> (field reported to the client, message).
 _UNIQUE_VIOLATIONS = {
@@ -44,7 +53,9 @@ def _conflict(field: str, message: str) -> HTTPException:
     )
 
 
-@router.post("", response_model=EmployeeCreatedResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=EmployeeCreatedResponse, status_code=status.HTTP_201_CREATED
+)
 def create_employee(
     data: EmployeeCreate,
     response: Response,
@@ -54,7 +65,9 @@ def create_employee(
     # Creating a login account is more sensitive than registering a person:
     # HR may register employees, only an ADMIN may hand out credentials.
     if data.account_role is not None and current_user.role is not UserRole.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=ACCOUNT_ADMIN_ONLY)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=ACCOUNT_ADMIN_ONLY
+        )
 
     document_number = data.document_number.upper()
     email = str(data.email).lower()
@@ -102,7 +115,9 @@ def create_employee(
                 User(
                     email=email,
                     full_name=f"{employee.first_names} {employee.last_names}",
-                    hashed_password=hash_password(temporary_password),  # never the plain text
+                    hashed_password=hash_password(
+                        temporary_password
+                    ),  # never the plain text
                     role=data.account_role,
                     must_change_password=True,
                     employee_id=employee.id,
@@ -169,7 +184,9 @@ def list_employees(
     if employee_status is not None:
         conditions.append(Employee.status == employee_status)
 
-    total = db.scalar(select(func.count()).select_from(Employee).where(*conditions)) or 0
+    total = (
+        db.scalar(select(func.count()).select_from(Employee).where(*conditions)) or 0
+    )
 
     rows = db.scalars(
         select(Employee)
@@ -203,6 +220,82 @@ def get_employee_stats(
         )
     ).one()
     return EmployeeStats(total=row[0], active=row[1], inactive=row[2])
+
+
+def _count_active_by(
+    db: Session, column: InstrumentedAttribute[str]
+) -> list[CountItem]:
+    """Active employees per distinct value of `column`, biggest group first."""
+    total = func.count(Employee.id)
+    rows = db.execute(
+        select(column, total)
+        .where(Employee.status == EmployeeStatus.ACTIVO)
+        .group_by(column)
+        .order_by(total.desc(), column)  # the column breaks ties: a stable order
+    ).all()
+    return [CountItem(name=name, count=count) for name, count in rows]
+
+
+def _group_rest(items: list[CountItem], limit: int) -> list[CountItem]:
+    """Keep the `limit` biggest groups and fold the rest into a single "Otros" bar.
+
+    `items` arrive sorted from the biggest group to the smallest. A single left-over
+    group keeps its own name: a bar called "Otros" that hides one position would mislead.
+    """
+    if len(items) <= limit + 1:
+        return items
+    rest = items[limit:]
+    return [
+        *items[:limit],
+        CountItem(name=OTHERS_LABEL, count=sum(i.count for i in rest)),
+    ]
+
+
+def _summary(employee: Employee, event_date: date | None) -> PersonSummary:
+    return PersonSummary(
+        id=employee.id,
+        first_names=employee.first_names,
+        last_names=employee.last_names,
+        position=employee.position,
+        area=employee.area,
+        event_date=event_date,
+    )
+
+
+# NOTE: declared BEFORE "/{employee_id}", otherwise "overview" would be read as an id.
+@router.get("/overview", response_model=EmployeeOverview)
+def get_employee_overview(
+    db: DbSession,
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+) -> EmployeeOverview:
+    """HU-6.1: distributions and recent movements for the dashboard charts."""
+    hires = db.scalars(
+        select(Employee)
+        .where(
+            Employee.status == EmployeeStatus.ACTIVO,
+            Employee.start_date
+            <= func.current_date(),  # not hires that have not started
+        )
+        .order_by(Employee.start_date.desc(), Employee.created_at.desc(), Employee.id)
+        .limit(RECENT_LIMIT)
+    ).all()
+    departures = db.scalars(
+        select(Employee)
+        .where(Employee.status == EmployeeStatus.INACTIVO)
+        # A missing end date goes last: those departures have no date to sort by.
+        .order_by(
+            Employee.end_date.desc().nulls_last(), Employee.last_names, Employee.id
+        )
+        .limit(RECENT_LIMIT)
+    ).all()
+    return EmployeeOverview(
+        by_area=_count_active_by(db, Employee.area),
+        by_position=_group_rest(
+            _count_active_by(db, Employee.position), POSITIONS_SHOWN
+        ),
+        recent_hires=[_summary(e, e.start_date) for e in hires],
+        recent_departures=[_summary(e, e.end_date) for e in departures],
+    )
 
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)

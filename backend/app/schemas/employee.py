@@ -120,6 +120,34 @@ class EmployeeCreatedResponse(EmployeeResponse):
     account: AccountCreated | None = None
 
 
+class CountItem(BaseModel):
+    """One bar of a distribution chart: a label and how many employees it groups."""
+
+    name: str
+    count: int
+
+
+class PersonSummary(BaseModel):
+    """A row of the dashboard's "recent" lists. No salary, document or email."""
+
+    id: uuid.UUID
+    first_names: str
+    last_names: str
+    position: str
+    area: str
+    # Hires: start date. Departures: contract end date (None if it was never set).
+    event_date: date | None
+
+
+class EmployeeOverview(BaseModel):
+    """What the dashboard draws below the headline numbers (HU-6.1)."""
+
+    by_area: list[CountItem]  # active employees per area, biggest first
+    by_position: list[CountItem]  # active employees per position, long tail grouped
+    recent_hires: list[PersonSummary]
+    recent_departures: list[PersonSummary]
+
+
 class EmployeeStats(BaseModel):
     """Headline numbers for the dashboard (HU-6.1)."""
 

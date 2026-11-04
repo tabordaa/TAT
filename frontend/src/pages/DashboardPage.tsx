@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import axios from 'axios'
-import { getEmployeeStats } from '../api/employees'
+import { getEmployeeOverview, getEmployeeStats } from '../api/employees'
 import { useAuth } from '../auth/useAuth'
+import { DistributionCard } from '../components/DistributionCard'
 import { IconAlert, IconCheck, IconUser, IconUsers } from '../components/Icons'
-import type { EmployeeStats } from '../types/employee'
+import { RecentPeopleCard } from '../components/RecentPeopleCard'
+import type { EmployeeOverview, EmployeeStats } from '../types/employee'
 
 // Numbers are re-read while the dashboard is open, so they follow the database
 // without reloading the page (HU-6.1 CA02).
@@ -16,7 +18,7 @@ type Load =
   | { phase: 'loading' }
   | { phase: 'forbidden' }
   | { phase: 'error' }
-  | { phase: 'ready'; stats: EmployeeStats }
+  | { phase: 'ready'; stats: EmployeeStats; overview: EmployeeOverview }
 
 interface StatCardProps {
   label: string
@@ -48,8 +50,9 @@ export function DashboardPage() {
     const controller = new AbortController()
 
     function refresh() {
-      getEmployeeStats(controller.signal)
-        .then((stats) => setLoad({ phase: 'ready', stats }))
+      // Both requests together: the cards and the charts always show the same moment.
+      Promise.all([getEmployeeStats(controller.signal), getEmployeeOverview(controller.signal)])
+        .then(([stats, overview]) => setLoad({ phase: 'ready', stats, overview }))
         .catch((error: unknown) => {
           if (axios.isCancel(error)) return
           if (axios.isAxiosError(error) && error.response?.status === 403) {
@@ -132,6 +135,41 @@ export function DashboardPage() {
               tone="muted"
             />
           </div>
+
+          {load.phase === 'ready' && (
+            <div className="chart-grid">
+              <DistributionCard
+                id="chart-area"
+                title="Empleados por área"
+                subtitle="Solo empleados activos, de mayor a menor"
+                items={load.overview.by_area}
+                total={load.stats.active}
+              />
+              <DistributionCard
+                id="chart-position"
+                title="Empleados por cargo"
+                subtitle="Solo empleados activos; los cargos con menos personas se agrupan en «Otros»"
+                items={load.overview.by_position}
+                total={load.stats.active}
+              />
+              <RecentPeopleCard
+                id="recent-hires"
+                title="Ingresos recientes"
+                linkLabel="Ver todos"
+                people={load.overview.recent_hires}
+                emptyText="Todavía no hay ingresos para mostrar."
+              />
+              <RecentPeopleCard
+                id="recent-departures"
+                title="Salidas recientes"
+                linkLabel="Ver todos"
+                people={load.overview.recent_departures}
+                emptyText="Todavía no hay salidas registradas."
+                footnote="Empleados inactivos, ordenados por fecha de fin de contrato."
+                muted
+              />
+            </div>
+          )}
           <p className="muted stat-footnote" aria-live="polite">
             Se actualizan automáticamente cada 30 segundos.{' '}
             <Link to="/empleados">Ver directorio de empleados</Link>
