@@ -1,6 +1,8 @@
 """FastAPI application entry point."""
 
-from fastapi import FastAPI
+from collections.abc import Awaitable, Callable
+
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
@@ -9,10 +11,31 @@ from app.api.health import router as health_router
 from app.core.config import get_settings
 
 
+async def _security_headers(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    response = await call_next(request)
+    # Responses hold personal data and salaries: browsers and proxies must not
+    # keep a copy. Applied to everything so a new endpoint is safe by default.
+    response.headers.setdefault("Cache-Control", "no-store")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    return response
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
+    # The interactive docs describe the whole API to anyone: development only.
+    public_docs = settings.environment != "production"
 
-    app = FastAPI(title="TAT API", version="0.1.0")
+    app = FastAPI(
+        title="TAT API",
+        version="0.1.0",
+        docs_url="/docs" if public_docs else None,
+        redoc_url="/redoc" if public_docs else None,
+        openapi_url="/openapi.json" if public_docs else None,
+    )
+
+    app.middleware("http")(_security_headers)
 
     app.add_middleware(
         CORSMiddleware,
