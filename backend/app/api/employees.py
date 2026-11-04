@@ -13,7 +13,7 @@ from app.api.deps import Admin, DbSession, EmployeeReader, HrStaff
 from app.api.me import Storage, photo_response
 from app.core.security import generate_temporary_password, hash_password
 from app.models.audit_log import AuditAction
-from app.models.employee import Employee, EmployeeStatus
+from app.models.employee import Employee, EmployeeStatus, EmploymentContract
 from app.models.user import User, UserRole
 from app.schemas.employee import (
     AccountCreated,
@@ -42,14 +42,14 @@ POSITIONS_SHOWN = 6  # biggest positions drawn as their own bar; the rest are gr
 OTHERS_LABEL = "Otros"
 
 # Partial unique index name -> (field reported to the client, message).
-_UNIQUE_VIOLATIONS = {
+UNIQUE_VIOLATIONS = {
     "uq_employees_active_document": ("document_number", DUPLICATE_DOCUMENT),
     "uq_employees_active_email": ("email", DUPLICATE_EMAIL),
     "ix_users_email": ("email", DUPLICATE_ACCOUNT),
 }
 
 
-def _conflict(field: str, message: str) -> HTTPException:
+def conflict(field: str, message: str) -> HTTPException:
     # Structured detail so the frontend can show the error under the right field.
     return HTTPException(
         status_code=status.HTTP_409_CONFLICT,
@@ -88,16 +88,16 @@ def create_employee(
         )
     )
     if document_taken is not None:
-        raise _conflict("document_number", DUPLICATE_DOCUMENT)
+        raise conflict("document_number", DUPLICATE_DOCUMENT)
 
     email_taken = db.scalar(select(Employee.id).where(active, Employee.email == email))
     if email_taken is not None:
-        raise _conflict("email", DUPLICATE_EMAIL)
+        raise conflict("email", DUPLICATE_EMAIL)
 
     if data.account_role is not None:
         account_taken = db.scalar(select(User.id).where(User.email == email))
         if account_taken is not None:
-            raise _conflict("email", DUPLICATE_ACCOUNT)
+            raise conflict("email", DUPLICATE_ACCOUNT)
 
     employee = Employee(
         **data.model_dump(exclude={"document_number", "email", "account_role"}),
@@ -114,6 +114,15 @@ def create_employee(
     #    account and audit rows are saved in ONE transaction: all or nothing.
     try:
         db.flush()  # assigns employee.id so the account and audit can point at it
+        db.add(
+            EmploymentContract(
+                employee_id=employee.id,
+                contract_type=employee.contract_type,
+                start_date=employee.start_date,
+                end_date=employee.end_date,
+                created_by_id=current_user.id,
+            )
+        )
         record_audit(
             db,
             actor=current_user,
@@ -168,8 +177,8 @@ def create_employee(
         db.rollback()
         diag = getattr(exc.orig, "diag", None)
         constraint = getattr(diag, "constraint_name", None)
-        if constraint in _UNIQUE_VIOLATIONS:
-            raise _conflict(*_UNIQUE_VIOLATIONS[constraint]) from exc
+        if constraint in UNIQUE_VIOLATIONS:
+            raise conflict(*UNIQUE_VIOLATIONS[constraint]) from exc
         raise
 
     db.refresh(employee)
@@ -332,7 +341,7 @@ def get_employee_overview(
     )
 
 
-def _get_employee_or_404(db: Session, employee_id: uuid.UUID) -> Employee:
+def get_employee_or_404(db: Session, employee_id: uuid.UUID) -> Employee:
     employee = db.get(Employee, employee_id)
     if employee is None:
         raise HTTPException(
@@ -349,7 +358,7 @@ def get_employee(
     current_user: EmployeeReader,  # session required (401) and role check (403)
 ) -> EmployeeDetailResponse:
     """HU-2.3: full record of one employee (any status, INACTIVO included)."""
-    employee = _get_employee_or_404(db, employee_id)
+    employee = get_employee_or_404(db, employee_id)
     account_id = db.scalar(select(User.id).where(User.employee_id == employee.id))
     return EmployeeDetailResponse(
         **EmployeeResponse.model_validate(employee).model_dump(),
@@ -365,7 +374,7 @@ def get_employee_photo(
     storage: Storage,
 ) -> Response:
     """HU-2.7: the private photo, only through the API and after the role check."""
-    return photo_response(_get_employee_or_404(db, employee_id), storage)
+    return photo_response(get_employee_or_404(db, employee_id), storage)
 
 
 @router.post("/{employee_id}/account/reset-password", response_model=AccountCreated)
@@ -380,7 +389,7 @@ def reset_account_password(
     It also restores access for a rehired employee: rehiring does not reopen the
     account by itself, that decision belongs to an administrator (HU-3.1).
     """
-    employee = _get_employee_or_404(db, employee_id)
+    employee = get_employee_or_404(db, employee_id)
     account = db.scalar(select(User).where(User.employee_id == employee.id))
     if account is None:
         raise HTTPException(
@@ -389,9 +398,9 @@ def reset_account_password(
         )
     if account.id == current_user.id:
         # A reset would lock the admin out of their own session in mid-action.
-        raise _conflict("account", "Use the change password option for your own account")
+        raise conflict("account", "Use the change password option for your own account")
     if employee.status is not EmployeeStatus.ACTIVO:
-        raise _conflict("status", "An inactive employee cannot have access")
+        raise conflict("status", "An inactive employee cannot have access")
 
     temporary_password = generate_temporary_password()
     changes: dict[str, tuple[object, object]] = {

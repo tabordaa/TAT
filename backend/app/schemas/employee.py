@@ -16,6 +16,18 @@ from app.models.employee import (
 from app.models.user import UserRole
 
 
+def _check_contract_dates(
+    contract_type: ContractType, start_date: date, end_date: date | None
+) -> None:
+    # Same rules as the frontend; the server is the one that counts.
+    if contract_type in CONTRACTS_WITH_END_DATE and end_date is None:
+        raise ValueError("end_date is required for this contract type")
+    if contract_type not in CONTRACTS_WITH_END_DATE and end_date is not None:
+        raise ValueError("end_date must be empty for this contract type")
+    if end_date is not None and end_date < start_date:
+        raise ValueError("end_date cannot be before start_date")
+
+
 class EmployeeCreate(BaseModel):
     """Input for registering an employee.
 
@@ -46,12 +58,41 @@ class EmployeeCreate(BaseModel):
 
     @model_validator(mode="after")
     def _check_dates(self) -> Self:
-        # Same rules as the frontend; the server is the one that counts.
-        if self.contract_type in CONTRACTS_WITH_END_DATE and self.end_date is None:
-            raise ValueError("end_date is required for this contract type")
-        if self.end_date is not None and self.end_date < self.start_date:
-            raise ValueError("end_date cannot be before start_date")
+        _check_contract_dates(self.contract_type, self.start_date, self.end_date)
         return self
+
+
+class ContractAssign(BaseModel):
+    """HU-3.1: a new contract. For an INACTIVO employee it is also the rehire."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contract_type: ContractType
+    start_date: date
+    end_date: date | None = None
+
+    @model_validator(mode="after")
+    def _check_dates(self) -> Self:
+        _check_contract_dates(self.contract_type, self.start_date, self.end_date)
+        return self
+
+
+class ContractTerminate(BaseModel):
+    """HU-3.3: the employee's departure date."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    end_date: date
+
+
+class ContractResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    contract_type: ContractType
+    start_date: date
+    end_date: date | None
+    terminated_on: date | None
 
 
 class EmployeeListItem(BaseModel):

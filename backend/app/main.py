@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
+from app.api.contracts import router as contracts_router
 from app.api.employees import router as employees_router
 from app.api.health import router as health_router
 from app.api.me import router as me_router
@@ -73,6 +74,8 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(audit_router)
+    # Before employees_router, whose "/{employee_id}" would catch fixed paths.
+    app.include_router(contracts_router)
     app.include_router(employees_router)
     app.include_router(me_router)
 

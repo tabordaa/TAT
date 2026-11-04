@@ -34,11 +34,17 @@ class ContractType(str, enum.Enum):
     FIJO = "FIJO"
     OBRA_LABOR = "OBRA_LABOR"
     APRENDIZAJE = "APRENDIZAJE"
+    PRESTACION_SERVICIOS = "PRESTACION_SERVICIOS"
 
 
 # Contracts that legally have an end date.
 CONTRACTS_WITH_END_DATE = frozenset(
-    {ContractType.FIJO, ContractType.OBRA_LABOR, ContractType.APRENDIZAJE}
+    {
+        ContractType.FIJO,
+        ContractType.OBRA_LABOR,
+        ContractType.APRENDIZAJE,
+        ContractType.PRESTACION_SERVICIOS,
+    }
 )
 
 
@@ -135,3 +141,39 @@ class Employee(Base):
     @property
     def has_photo(self) -> bool:
         return self.photo_path is not None
+
+
+class EmploymentContract(Base):
+    """One contract in an employee's history (HU-3.1).
+
+    The columns on Employee hold the current contract, which is what screens
+    show. This table keeps every contract, so a departure or a rehire never
+    overwrites the past.
+    """
+
+    __tablename__ = "employment_contracts"
+    __table_args__ = (
+        Index("ix_employment_contracts_employee_start", "employee_id", "start_date"),
+        CheckConstraint(
+            "end_date IS NULL OR end_date >= start_date",
+            name="ck_contracts_end_after_start",
+        ),
+        CheckConstraint(
+            "terminated_on IS NULL OR terminated_on >= start_date",
+            name="ck_contracts_terminated_after_start",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    employee_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("employees.id", ondelete="RESTRICT")
+    )
+    contract_type: Mapped[ContractType] = mapped_column(_enum(ContractType, "contract_type"))
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)  # the agreed end, if any
+    # When it really ended. NULL means this is the contract in force.
+    terminated_on: Mapped[date | None] = mapped_column(Date)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
