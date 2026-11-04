@@ -16,6 +16,7 @@ from app.api.employees import (
     conflict,
     get_employee_or_404,
 )
+from app.core.clock import today
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus, EmploymentContract
 from app.models.user import User
@@ -190,7 +191,7 @@ def terminate_contract(
             },
         )
     # The status changes today, so a future date would describe something false.
-    if data.end_date > date.today():
+    if data.end_date > today():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"field": "end_date", "message": "The end date cannot be in the future"},

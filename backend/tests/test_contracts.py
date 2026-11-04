@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.core.clock import today
 from app.models.audit_log import AuditAction, AuditLog
 from app.models.employee import EmploymentContract
 from app.models.user import User, UserRole
@@ -300,7 +301,7 @@ def test_end_date_can_be_the_start_day(
 def test_end_date_cannot_be_in_the_future(
     auth_client: TestClient, employee: dict[str, Any]
 ) -> None:
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    tomorrow = (today() + timedelta(days=1)).isoformat()
     assert _terminate(auth_client, employee["id"], tomorrow).status_code == 422
 
 
