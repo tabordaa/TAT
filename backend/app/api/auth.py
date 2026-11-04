@@ -6,17 +6,20 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DbSession, resolve_user_from_cookie
+from app.api.deps import DbSession, SessionUser, resolve_user_from_cookie
 from app.core.config import get_settings
 from app.core.network import client_ip
 from app.core.rate_limit import LoginThrottle
 from app.core.security import (
     DUMMY_HASH,
     create_access_token,
+    hash_password,
     verify_password,
 )
+from app.models.audit_log import AuditAction
 from app.models.user import User
-from app.schemas.auth import LoginRequest, UserResponse
+from app.schemas.auth import ChangePasswordRequest, LoginRequest, UserResponse
+from app.services.audit import record_audit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,6 +39,24 @@ def _invalid_credentials() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid email or password",
+    )
+
+
+def _set_session_cookie(response: Response, user: User) -> None:
+    settings = get_settings()
+    token = create_access_token(
+        subject=str(user.id),
+        role=user.role.value,
+        version=user.token_version,
+    )
+    response.set_cookie(
+        key=settings.cookie_name,
+        value=token,
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,  # JavaScript cannot read it -> mitigates token theft via XSS
+        secure=settings.cookie_secure,  # HTTPS only in production
+        samesite="lax",  # not sent on cross-site POSTs -> mitigates CSRF
+        path="/",
     )
 
 
@@ -61,7 +82,6 @@ def _authenticate(email: str, password: str, db: DbSession) -> User | None:
 def login(
     credentials: LoginRequest, request: Request, response: Response, db: DbSession
 ) -> User:
-    settings = get_settings()
     email = credentials.email.lower()
     ip = client_ip(request)
 
@@ -88,27 +108,72 @@ def login(
         raise _invalid_credentials()
     login_throttle.record_success(ip, email)
 
-    token = create_access_token(
-        subject=str(user.id),
-        role=user.role.value,
-        version=user.token_version,
-    )
-
-    response.set_cookie(
-        key=settings.cookie_name,
-        value=token,
-        max_age=settings.access_token_expire_minutes * 60,
-        httponly=True,  # JavaScript cannot read it -> mitigates token theft via XSS
-        secure=settings.cookie_secure,  # HTTPS only in production
-        samesite="lax",  # not sent on cross-site POSTs -> mitigates CSRF
-        path="/",
-    )
+    _set_session_cookie(response, user)
     # response_model=UserResponse filters the ORM object: no hashed_password.
     return user
 
 
+def _password_error(field: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"field": field, "message": message},
+    )
+
+
+@router.post("/change-password", response_model=UserResponse)
+def change_password(
+    data: ChangePasswordRequest,
+    request: Request,
+    response: Response,
+    db: DbSession,
+    user: SessionUser,  # the one protected action a temporary password may reach
+) -> User:
+    """HU-1.2: replace the password; a temporary one stops working right here."""
+    ip = client_ip(request)
+
+    # A stolen session must not be able to guess the current password either.
+    retry_after = login_throttle.retry_after(ip, user.email)
+    if retry_after > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed attempts. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    if not verify_password(data.current_password, user.hashed_password):
+        login_throttle.record_failure(ip, user.email)
+        logger.warning("password change failed email_ref=%s", _email_reference(user.email))
+        raise _password_error("current_password", "The current password is incorrect")
+    login_throttle.record_success(ip, user.email)
+
+    if data.new_password == data.current_password:
+        raise _password_error(
+            "new_password", "The new password must be different from the current one"
+        )
+
+    was_required = user.must_change_password
+    user.hashed_password = hash_password(data.new_password)
+    user.must_change_password = False
+    # Whoever else held a session with the old password loses it now. This
+    # device stays signed in with the fresh cookie below.
+    user.token_version += 1
+    record_audit(
+        db,
+        actor=user,
+        request=request,
+        action=AuditAction.PASSWORD_CHANGED,
+        entity_type="user",
+        entity_id=user.id,
+        changes={"must_change_password": (was_required, False)},
+    )
+    db.commit()
+
+    _set_session_cookie(response, user)
+    return user
+
+
 @router.get("/me", response_model=UserResponse)
-def me(current_user: CurrentUser) -> User:
+def me(current_user: SessionUser) -> User:
     """Lets the frontend ask "who am I?" since it cannot read the cookie."""
     return current_user
 

@@ -49,14 +49,36 @@ def resolve_user_from_cookie(request: Request, db: Session) -> User | None:
     return user
 
 
-def get_current_user(request: Request, db: DbSession) -> User:
-    """Dependency for protected endpoints: the authenticated user or 401.
+def get_session_user(request: Request, db: DbSession) -> User:
+    """Any valid session, even one that still has to change its password.
 
-    Any endpoint just declares `user: CurrentUser` to require login.
+    Only for the few endpoints such a session may use: who am I and the change
+    itself. Everything else goes through `CurrentUser`.
     """
     user = resolve_user_from_cookie(request, db)
     if user is None:
         raise _unauthorized()
+    return user
+
+
+SessionUser = Annotated[User, Depends(get_session_user)]
+
+
+def get_current_user(user: SessionUser) -> User:
+    """Dependency for protected endpoints: the authenticated user or 401.
+
+    Any endpoint just declares `user: CurrentUser` to require login. HU-1.2: a
+    temporary password opens nothing but the change screen. Enforcing it here,
+    the default dependency, protects every present and future endpoint.
+    """
+    if user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "PASSWORD_CHANGE_REQUIRED",
+                "message": "You must change your temporary password first",
+            },
+        )
     return user
 
 

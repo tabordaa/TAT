@@ -15,6 +15,8 @@ from app.models.user import User
 # Fragments that must never name an audited field. A hit is a programming error,
 # so it fails loudly (and in the tests) instead of quietly storing a secret.
 _SECRET_FRAGMENTS = ("password", "token", "secret", "hash")
+# A yes/no flag about the password, not the password itself.
+_NOT_SECRET = frozenset({"must_change_password"})
 
 
 def _as_text(value: Any) -> str | None:
@@ -43,6 +45,8 @@ def record_audit(
     `changes` maps each field to its (old, new) values.
     """
     for field in changes:
+        if field in _NOT_SECRET:
+            continue
         if any(fragment in field.lower() for fragment in _SECRET_FRAGMENTS):
             raise ValueError(f"Refusing to audit a secret field: {field}")
 
