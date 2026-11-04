@@ -4,7 +4,9 @@ import { ROLE_LABELS } from '../types/auth'
 import type { AccountCreated } from '../types/employee'
 
 interface TemporaryPasswordPanelProps {
-  employeeName: string
+  title: string
+  description: string
+  continueLabel: string
   account: AccountCreated
   onContinue: () => void
 }
@@ -12,14 +14,16 @@ interface TemporaryPasswordPanelProps {
 type CopyState = 'idle' | 'copied' | 'failed'
 
 /**
- * Shows the temporary password of a brand-new account.
+ * Shows a freshly generated temporary password (new account or manual reset).
  *
  * It exists only in this component's props (React memory): never in the URL,
  * router state, localStorage or sessionStorage. Once the admin leaves the
  * screen it is gone for good, because the server keeps only its hash.
  */
 export function TemporaryPasswordPanel({
-  employeeName,
+  title,
+  description,
+  continueLabel,
   account,
   onContinue,
 }: TemporaryPasswordPanelProps) {
@@ -40,8 +44,8 @@ export function TemporaryPasswordPanel({
       <div className="alert alert-success" role="status">
         <IconCheck size={20} />
         <div className="alert-body">
-          <strong>Empleado registrado y cuenta de acceso creada.</strong>
-          <span>{employeeName} ya puede ingresar con las credenciales de abajo.</span>
+          <strong>{title}</strong>
+          <span>{description}</span>
         </div>
       </div>
 
@@ -93,7 +97,7 @@ export function TemporaryPasswordPanel({
             {copyState === 'copied' ? 'Copiada' : 'Copiar contraseña'}
           </button>
           <button type="button" className="btn btn-primary" onClick={onContinue}>
-            Entendido, ir al listado
+            {continueLabel}
           </button>
         </div>
       </div>

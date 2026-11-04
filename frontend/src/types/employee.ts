@@ -74,7 +74,12 @@ export interface Employee extends Omit<EmployeeCreatePayload, 'account_role'> {
   created_at: string
 }
 
-/** Access account created together with an employee (HU-1.4). */
+/** Response of GET /employees/{id}: also says whether a login account exists. */
+export interface EmployeeDetail extends Employee {
+  has_account: boolean
+}
+
+/** Access account with a fresh temporary password (HU-1.4 and HU-1.5). */
 export interface AccountCreated {
   email: string
   role: UserRole

@@ -165,7 +165,9 @@ export function RegisterEmployeePage() {
           <strong>Cuenta de acceso creada</strong>
         </nav>
         <TemporaryPasswordPanel
-          employeeName={`${created.first_names} ${created.last_names}`}
+          title="Empleado registrado y cuenta de acceso creada."
+          description={`${created.first_names} ${created.last_names} ya puede ingresar con las credenciales de abajo.`}
+          continueLabel="Entendido, ir al listado"
           account={created.account}
           onContinue={() => goToList(created)}
         />

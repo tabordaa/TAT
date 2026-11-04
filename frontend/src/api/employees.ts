@@ -1,8 +1,9 @@
 import { api } from './client'
 import type {
-  Employee,
+  AccountCreated,
   EmployeeCreated,
   EmployeeCreatePayload,
+  EmployeeDetail,
   EmployeeListQuery,
   EmployeeListResponse,
   EmployeeOverview,
@@ -10,8 +11,16 @@ import type {
 } from '../types/employee'
 
 /** GET /employees/{id}. Rejects with an axios 404 error when the employee does not exist. */
-export async function getEmployee(id: string, signal?: AbortSignal): Promise<Employee> {
-  const { data } = await api.get<Employee>(`/employees/${encodeURIComponent(id)}`, { signal })
+export async function getEmployee(id: string, signal?: AbortSignal): Promise<EmployeeDetail> {
+  const { data } = await api.get<EmployeeDetail>(`/employees/${encodeURIComponent(id)}`, { signal })
+  return data
+}
+
+/** POST /employees/{id}/account/reset-password (ADMIN). The password is returned only here. */
+export async function resetAccountPassword(employeeId: string): Promise<AccountCreated> {
+  const { data } = await api.post<AccountCreated>(
+    `/employees/${encodeURIComponent(employeeId)}/account/reset-password`,
+  )
   return data
 }
 
