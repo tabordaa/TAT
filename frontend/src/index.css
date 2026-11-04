@@ -874,3 +874,12 @@ a {
 .avatar-muted {
   background: var(--color-muted);
 }
+
+/* Audit trail (HU-5.1) */
+.audit-changes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}

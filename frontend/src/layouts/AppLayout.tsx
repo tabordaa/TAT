@@ -8,6 +8,7 @@ import {
   IconGrid,
   IconLogout,
   IconMegaphone,
+  IconShield,
   IconUser,
   IconUsers,
 } from '../components/Icons'
@@ -63,6 +64,11 @@ export function AppLayout() {
           <NavLink to="/empleados" className="nav-item">
             <IconUsers /> Empleados
           </NavLink>
+          {user?.role === 'ADMIN' && (
+            <NavLink to="/auditoria" className="nav-item">
+              <IconShield /> Auditoría
+            </NavLink>
+          )}
           <span className="nav-item nav-item-disabled" aria-disabled="true">
             <IconMegaphone /> Novedades <span className="badge badge-muted">Próximamente</span>
           </span>
