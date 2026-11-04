@@ -4,13 +4,14 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.api.deps import DbSession, HrStaff
 from app.core.security import generate_temporary_password, hash_password
+from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus
 from app.models.user import User, UserRole
 from app.schemas.employee import (
@@ -25,6 +26,7 @@ from app.schemas.employee import (
     EmployeeStats,
     PersonSummary,
 )
+from app.services.audit import record_audit
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
@@ -58,6 +60,7 @@ def _conflict(field: str, message: str) -> HTTPException:
 )
 def create_employee(
     data: EmployeeCreate,
+    request: Request,
     response: Response,
     db: DbSession,
     current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
@@ -105,23 +108,52 @@ def create_employee(
 
     account: AccountCreated | None = None
     # 2) The unique indexes are the real guarantee: if two requests pass the
-    #    checks above at the same time, the database rejects one. Employee and
-    #    account are saved in ONE transaction: either both exist or neither.
+    #    checks above at the same time, the database rejects one. Employee,
+    #    account and audit rows are saved in ONE transaction: all or nothing.
     try:
+        db.flush()  # assigns employee.id so the account and audit can point at it
+        record_audit(
+            db,
+            actor=current_user,
+            request=request,
+            action=AuditAction.EMPLOYEE_CREATED,
+            entity_type="employee",
+            entity_id=employee.id,
+            changes={
+                "status": (None, employee.status),
+                "position": (None, employee.position),
+                "area": (None, employee.area),
+                "salary": (None, employee.salary),
+                "contract_type": (None, employee.contract_type),
+                "start_date": (None, employee.start_date),
+                "end_date": (None, employee.end_date),
+            },
+        )
         if data.account_role is not None:
-            db.flush()  # assigns employee.id so the account can point at it
             temporary_password = generate_temporary_password()
-            db.add(
-                User(
-                    email=email,
-                    full_name=f"{employee.first_names} {employee.last_names}",
-                    hashed_password=hash_password(
-                        temporary_password
-                    ),  # never the plain text
-                    role=data.account_role,
-                    must_change_password=True,
-                    employee_id=employee.id,
-                )
+            new_user = User(
+                email=email,
+                full_name=f"{employee.first_names} {employee.last_names}",
+                hashed_password=hash_password(
+                    temporary_password
+                ),  # never the plain text
+                role=data.account_role,
+                must_change_password=True,
+                employee_id=employee.id,
+            )
+            db.add(new_user)
+            db.flush()  # the unique email surfaces here; assigns new_user.id
+            record_audit(
+                db,
+                actor=current_user,
+                request=request,
+                action=AuditAction.ACCOUNT_CREATED,
+                entity_type="user",
+                entity_id=new_user.id,
+                changes={
+                    "email": (None, email),
+                    "role": (None, data.account_role),
+                },
             )
             account = AccountCreated(
                 email=email,

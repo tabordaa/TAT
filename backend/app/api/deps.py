@@ -90,3 +90,4 @@ def require_role(*allowed: UserRole) -> Callable[[User], User]:
 # Conservative choice: MANAGER and EMPLOYEE get no access until the product
 # decides what each of them may see.
 HrStaff = Annotated[User, Depends(require_role(UserRole.ADMIN, UserRole.HR))]
+Admin = Annotated[User, Depends(require_role(UserRole.ADMIN))]
