@@ -18,6 +18,12 @@ function toLoginError(error: unknown): LoginError {
         detail: 'Verifica tus credenciales e intenta de nuevo.',
       }
     }
+    if (error.response?.status === 429) {
+      return {
+        title: 'Demasiados intentos fallidos.',
+        detail: 'Por seguridad, espera unos minutos antes de intentarlo de nuevo.',
+      }
+    }
     if (error.response?.status === 422) {
       return { title: 'Datos inválidos.', detail: 'Revisa el formato del correo electrónico.' }
     }

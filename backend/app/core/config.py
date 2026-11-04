@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     cookie_name: str = "tat_access_token"
     cookie_secure: bool = False
 
+    # How many reverse proxies of ours sit in front of the API (see core.network).
+    trusted_proxy_hops: int = Field(default=0, ge=0)
+
+    # Login brute-force limits, counted over the same time window.
+    login_max_failures_per_account: int = Field(default=5, gt=0)
+    login_max_failures_per_ip: int = Field(default=30, gt=0)
+    login_failure_window_seconds: int = Field(default=900, gt=0)
+
     @field_validator("jwt_secret_key")
     @classmethod
     def _jwt_secret_min_length(cls, value: SecretStr) -> SecretStr:

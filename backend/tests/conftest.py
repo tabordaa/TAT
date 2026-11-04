@@ -60,6 +60,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from app.api.auth import login_throttle
 from app.core.config import get_settings
 from app.core.security import hash_password
 from app.db.session import engine as app_engine
@@ -79,6 +80,12 @@ def engine() -> Engine:
 def password_hash() -> str:
     # Argon2 is deliberately slow: hash once per run, not once per test.
     return hash_password(TEST_PASSWORD)
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_throttle() -> None:
+    # Its counters live in memory, outside the rolled-back transaction.
+    login_throttle.clear()
 
 
 @pytest.fixture
