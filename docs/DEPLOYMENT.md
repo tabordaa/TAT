@@ -27,7 +27,8 @@ Browser -> Vercel (static app + /api rewrite) -> Render (FastAPI) -> Supabase (P
 | `SUPABASE_STORAGE_BUCKET` | Name of the private bucket |
 
 3. Deploy. Check that `https://<service>.onrender.com/health` answers `{"status":"ok"}` and that `/docs` answers 404.
-4. Create the first administrator from the service's Shell tab: `python -m scripts.create_admin`.
+4. Create the first administrator with `python -m scripts.create_admin`, from the service's Shell tab. If your plan has no Shell, run it on your machine with `DATABASE_URL` set to the production URL for that one command.
+5. If photos are enabled, confirm the bucket the same way: `python -m scripts.check_storage`.
 
 If the service name was taken, Render adds a suffix to the URL. Update `destination` in `frontend/vercel.json` to match.
 
