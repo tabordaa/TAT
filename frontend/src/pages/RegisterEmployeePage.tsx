@@ -296,7 +296,7 @@ export function RegisterEmployeePage() {
               <p className="section-kicker">SECCIÓN 03</p>
               <h2>Acceso al sistema</h2>
               <p className="muted">
-                Opcional. Crea la cuenta de acceso junto con el registro del empleado.
+                Crea la cuenta de acceso junto con el registro del empleado.
               </p>
             </div>
 
