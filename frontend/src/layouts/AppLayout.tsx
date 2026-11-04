@@ -18,6 +18,7 @@ export function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const canReadEmployees = user !== null && user.role !== 'EMPLOYEE'
 
   async function handleLogout() {
     setIsLoggingOut(true)
@@ -58,23 +59,36 @@ export function AppLayout() {
       <div className="app-body">
         <nav className="sidebar" aria-label="Navegación principal">
           <p className="sidebar-title">NAVEGACIÓN PRINCIPAL</p>
-          <NavLink to="/dashboard" className="nav-item">
-            <IconGrid /> Panel principal
-          </NavLink>
-          <NavLink to="/empleados" className="nav-item">
-            <IconUsers /> Empleados
-          </NavLink>
+          {canReadEmployees && (
+            <>
+              <NavLink to="/dashboard" className="nav-item">
+                <IconGrid /> Panel principal
+              </NavLink>
+              <NavLink to="/empleados" className="nav-item">
+                <IconUsers /> Empleados
+              </NavLink>
+            </>
+          )}
+          {user?.employee_id != null && (
+            <NavLink to="/mi-perfil" className="nav-item">
+              <IconUser /> Mi perfil
+            </NavLink>
+          )}
           {user?.role === 'ADMIN' && (
             <NavLink to="/auditoria" className="nav-item">
               <IconShield /> Auditoría
             </NavLink>
           )}
-          <span className="nav-item nav-item-disabled" aria-disabled="true">
-            <IconMegaphone /> Novedades <span className="badge badge-muted">Próximamente</span>
-          </span>
-          <span className="nav-item nav-item-disabled" aria-disabled="true">
-            <IconChart /> Reportes <span className="badge badge-muted">Próximamente</span>
-          </span>
+          {canReadEmployees && (
+            <>
+              <span className="nav-item nav-item-disabled" aria-disabled="true">
+                <IconMegaphone /> Novedades <span className="badge badge-muted">Próximamente</span>
+              </span>
+              <span className="nav-item nav-item-disabled" aria-disabled="true">
+                <IconChart /> Reportes <span className="badge badge-muted">Próximamente</span>
+              </span>
+            </>
+          )}
         </nav>
 
         <main className="app-main">

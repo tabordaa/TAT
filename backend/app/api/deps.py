@@ -108,8 +108,11 @@ def require_role(*allowed: UserRole) -> Callable[[User], User]:
     return dependency
 
 
-# Who may use the employee directory (it exposes salary and personal data).
-# Conservative choice: MANAGER and EMPLOYEE get no access until the product
-# decides what each of them may see.
+# Who may change employee records.
 HrStaff = Annotated[User, Depends(require_role(UserRole.ADMIN, UserRole.HR))]
+# Who may read every employee's record (it exposes salary and personal data): a
+# MANAGER reads but never writes. An EMPLOYEE only reaches their own, under /me.
+EmployeeReader = Annotated[
+    User, Depends(require_role(UserRole.ADMIN, UserRole.HR, UserRole.MANAGER))
+]
 Admin = Annotated[User, Depends(require_role(UserRole.ADMIN))]

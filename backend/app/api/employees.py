@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
-from app.api.deps import Admin, DbSession, HrStaff
+from app.api.deps import Admin, DbSession, EmployeeReader, HrStaff
 from app.core.security import generate_temporary_password, hash_password
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus
@@ -189,7 +189,7 @@ def _like_pattern(term: str) -> str:
 @router.get("", response_model=EmployeeListResponse)
 def list_employees(
     db: DbSession,
-    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+    current_user: EmployeeReader,  # session required (401) and role check (403)
     q: Annotated[
         str | None,
         Query(max_length=100, description="Words to find in names or document number"),
@@ -242,7 +242,7 @@ def list_employees(
 @router.get("/stats", response_model=EmployeeStats)
 def get_employee_stats(
     db: DbSession,
-    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+    current_user: EmployeeReader,  # session required (401) and role check (403)
 ) -> EmployeeStats:
     """HU-6.1: totals computed by the database in a single query."""
     row = db.execute(
@@ -299,7 +299,7 @@ def _summary(employee: Employee, event_date: date | None) -> PersonSummary:
 @router.get("/overview", response_model=EmployeeOverview)
 def get_employee_overview(
     db: DbSession,
-    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+    current_user: EmployeeReader,  # session required (401) and role check (403)
 ) -> EmployeeOverview:
     """HU-6.1: distributions and recent movements for the dashboard charts."""
     hires = db.scalars(
@@ -345,7 +345,7 @@ def _get_employee_or_404(db: Session, employee_id: uuid.UUID) -> Employee:
 def get_employee(
     employee_id: uuid.UUID,  # a malformed id is rejected with 422 before reaching us
     db: DbSession,
-    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+    current_user: EmployeeReader,  # session required (401) and role check (403)
 ) -> EmployeeDetailResponse:
     """HU-2.3: full record of one employee (any status, INACTIVO included)."""
     employee = _get_employee_or_404(db, employee_id)

@@ -44,7 +44,7 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (user !== null) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/" replace />
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -53,7 +53,7 @@ export function LoginPage() {
     setIsSubmitting(true)
     try {
       await login({ email: email.trim(), password })
-      navigate('/dashboard', { replace: true })
+      navigate('/', { replace: true })
     } catch (err) {
       setError(toLoginError(err))
     } finally {

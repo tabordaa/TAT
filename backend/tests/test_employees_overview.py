@@ -55,7 +55,7 @@ def test_overview_requires_a_session(client: TestClient) -> None:
     assert client.get("/employees/overview").status_code == 401
 
 
-@pytest.mark.parametrize("role", [UserRole.MANAGER, UserRole.EMPLOYEE])
+@pytest.mark.parametrize("role", [UserRole.EMPLOYEE])
 def test_overview_is_not_available_to_other_roles(
     client: TestClient, db: Session, password_hash: str, role: UserRole
 ) -> None:

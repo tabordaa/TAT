@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.main import app
 from app.models.user import User, UserRole
 from tests.conftest import TEST_PASSWORD, make_user
 
 PayloadFactory = Callable[..., dict[str, Any]]
 
 ALLOWED_ROLES = [UserRole.ADMIN, UserRole.HR]
-DENIED_ROLES = [UserRole.MANAGER, UserRole.EMPLOYEE]
 
 
 def _login_as(
@@ -67,21 +67,70 @@ def test_admin_and_hr_keep_access_to_the_employee_endpoints(
     assert client.get(f"/employees/{created.json()['id']}").status_code == 200
 
 
-# --- roles without access: 403 ----------------------------------------------
+# --- MANAGER: reads everything, writes nothing --------------------------------
 
 
-@pytest.mark.parametrize("role", DENIED_ROLES)
-def test_manager_and_employee_get_403_on_every_employee_endpoint(
+def test_manager_can_read_the_employee_endpoints(
+    client: TestClient, db: Session, password_hash: str, employee_id: str
+) -> None:
+    _login_as(client, db, password_hash, UserRole.MANAGER)
+
+    assert client.get("/employees").status_code == 200
+    assert client.get("/employees/stats").status_code == 200
+    assert client.get("/employees/overview").status_code == 200
+    detail = client.get(f"/employees/{employee_id}")
+    assert detail.status_code == 200
+    assert "salary" in detail.json()  # the salary history (HU-2.5) needs it too
+
+
+def test_manager_cannot_write(
     client: TestClient,
     db: Session,
     password_hash: str,
     employee_id: str,
     make_employee_payload: PayloadFactory,
-    role: UserRole,
 ) -> None:
-    _login_as(client, db, password_hash, role)
+    _login_as(client, db, password_hash, UserRole.MANAGER)
+
+    assert client.post("/employees", json=make_employee_payload()).status_code == 403
+    assert (
+        client.post(f"/employees/{employee_id}/account/reset-password").status_code
+        == 403
+    )
+    assert client.get("/audit").status_code == 403
+
+
+def test_manager_has_read_access_on_every_get_and_nothing_else(
+    client: TestClient, db: Session, password_hash: str, employee_id: str
+) -> None:
+    # Walks the published API, so a future write endpoint that forgets the role
+    # check fails here. /me is exempt: those routes only touch the caller's own data.
+    _login_as(client, db, password_hash, UserRole.MANAGER)
+    for path, operations in app.openapi()["paths"].items():
+        if not path.startswith("/employees"):
+            continue
+        url = path.replace("{employee_id}", employee_id)
+        for method in operations:
+            if method != "get":
+                response = client.request(method.upper(), url, json={})
+                assert response.status_code == 403, f"{method} {path}"
+
+
+# --- EMPLOYEE: nothing under /employees --------------------------------------
+
+
+def test_employee_gets_403_on_every_employee_endpoint(
+    client: TestClient,
+    db: Session,
+    password_hash: str,
+    employee_id: str,
+    make_employee_payload: PayloadFactory,
+) -> None:
+    _login_as(client, db, password_hash, UserRole.EMPLOYEE)
 
     assert client.get("/employees").status_code == 403
+    assert client.get("/employees/stats").status_code == 403
+    assert client.get("/employees/overview").status_code == 403
     assert client.get(f"/employees/{employee_id}").status_code == 403
     assert client.post("/employees", json=make_employee_payload()).status_code == 403
 
