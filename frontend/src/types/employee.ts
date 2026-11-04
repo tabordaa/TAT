@@ -15,11 +15,46 @@ export const CONTRACT_TYPES = {
   FIJO: 'Término fijo',
   OBRA_LABOR: 'Obra o labor',
   APRENDIZAJE: 'Aprendizaje',
+  PRESTACION_SERVICIOS: 'Prestación de servicios',
 } as const
 export type ContractType = keyof typeof CONTRACT_TYPES
 
-/** Contracts that require an end date. */
-export const CONTRACTS_WITH_END_DATE: readonly ContractType[] = ['FIJO', 'OBRA_LABOR', 'APRENDIZAJE']
+/** Contracts that require an end date. The rest must not have one. */
+export const CONTRACTS_WITH_END_DATE: readonly ContractType[] = [
+  'FIJO',
+  'OBRA_LABOR',
+  'APRENDIZAJE',
+  'PRESTACION_SERVICIOS',
+]
+
+/** One contract of an employee's history (mirrors backend ContractResponse). */
+export interface Contract {
+  id: string
+  contract_type: ContractType
+  start_date: string
+  end_date: string | null
+  /** When it really ended; null while it is the contract in force. */
+  terminated_on: string | null
+}
+
+/** Body of POST /employees/{id}/contracts (HU-3.1). */
+export interface ContractAssignPayload {
+  contract_type: ContractType
+  start_date: string
+  end_date: string | null
+}
+
+/** A row of the "Contratos por vencer" widget (mirrors backend ContractAlert). */
+export interface ContractAlert {
+  id: string
+  first_names: string
+  last_names: string
+  position: string
+  end_date: string
+  /** Calculated by the server; negative once the contract has expired. */
+  days_left: number
+  state: 'POR_VENCER' | 'VENCIDO'
+}
 
 export interface EmployeeFormValues {
   firstNames: string

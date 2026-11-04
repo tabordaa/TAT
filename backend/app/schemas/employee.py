@@ -3,6 +3,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from typing_extensions import Self  # typing.Self needs Python 3.11+ (you're on 3.10)
@@ -83,6 +84,18 @@ class ContractTerminate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     end_date: date
+
+
+class ContractAlert(BaseModel):
+    """HU-3.2: a contract that needs attention. No salary or document."""
+
+    id: uuid.UUID  # the employee, to link to their record
+    first_names: str
+    last_names: str
+    position: str
+    end_date: date
+    days_left: int  # calculated by the server; negative once it has expired
+    state: Literal["POR_VENCER", "VENCIDO"]
 
 
 class ContractResponse(BaseModel):

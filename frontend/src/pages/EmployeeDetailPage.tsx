@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import axios from 'axios'
 import { getEmployee } from '../api/employees'
 import { useAuth } from '../auth/useAuth'
+import { ContractSection } from '../components/ContractSection'
 import {
   EmployeeRecordHeader,
   EmploymentDataSection,
@@ -103,6 +104,11 @@ export function EmployeeDetailPage() {
           <div className="detail-sections">
             <PersonalDataSection employee={employee} />
             <EmploymentDataSection employee={employee} />
+            <ContractSection
+              employee={employee}
+              canWrite={user?.role === 'ADMIN' || user?.role === 'HR'}
+              onChanged={() => setReloadCount((count) => count + 1)}
+            />
 
             {user?.role === 'ADMIN' && employee.has_account && (
               <ResetPasswordCard employee={employee} />

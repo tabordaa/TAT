@@ -1,12 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import axios from 'axios'
+import { getContractAlerts } from '../api/contracts'
 import { getEmployeeOverview, getEmployeeStats } from '../api/employees'
 import { useAuth } from '../auth/useAuth'
+import { ContractAlertsCard } from '../components/ContractAlertsCard'
 import { DistributionCard } from '../components/DistributionCard'
 import { IconAlert, IconCheck, IconUser, IconUsers } from '../components/Icons'
 import { RecentPeopleCard } from '../components/RecentPeopleCard'
-import type { EmployeeOverview, EmployeeStats } from '../types/employee'
+import type { ContractAlert, EmployeeOverview, EmployeeStats } from '../types/employee'
 
 // Numbers are re-read while the dashboard is open, so they follow the database
 // without reloading the page (HU-6.1 CA02).
@@ -18,7 +20,7 @@ type Load =
   | { phase: 'loading' }
   | { phase: 'forbidden' }
   | { phase: 'error' }
-  | { phase: 'ready'; stats: EmployeeStats; overview: EmployeeOverview }
+  | { phase: 'ready'; stats: EmployeeStats; overview: EmployeeOverview; alerts: ContractAlert[] }
 
 interface StatCardProps {
   label: string
@@ -51,8 +53,12 @@ export function DashboardPage() {
 
     function refresh() {
       // Both requests together: the cards and the charts always show the same moment.
-      Promise.all([getEmployeeStats(controller.signal), getEmployeeOverview(controller.signal)])
-        .then(([stats, overview]) => setLoad({ phase: 'ready', stats, overview }))
+      Promise.all([
+        getEmployeeStats(controller.signal),
+        getEmployeeOverview(controller.signal),
+        getContractAlerts(controller.signal),
+      ])
+        .then(([stats, overview, alerts]) => setLoad({ phase: 'ready', stats, overview, alerts }))
         .catch((error: unknown) => {
           if (axios.isCancel(error)) return
           if (axios.isAxiosError(error) && error.response?.status === 403) {
@@ -135,6 +141,8 @@ export function DashboardPage() {
               tone="muted"
             />
           </div>
+
+          {load.phase === 'ready' && <ContractAlertsCard alerts={load.alerts} />}
 
           {load.phase === 'ready' && (
             <div className="chart-grid">
