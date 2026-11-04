@@ -2,8 +2,15 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import axios from 'axios'
 import { getEmployee } from '../api/employees'
+import { useAuth } from '../auth/useAuth'
 import { IconAlert, IconUsers } from '../components/Icons'
-import { CONTRACT_TYPES, DOCUMENT_TYPES, type Employee } from '../types/employee'
+import { ResetPasswordCard } from '../components/ResetPasswordCard'
+import {
+  CONTRACT_TYPES,
+  DOCUMENT_TYPES,
+  type Employee,
+  type EmployeeDetail,
+} from '../types/employee'
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', { dateStyle: 'long', timeZone: 'UTC' })
 const salaryFormatter = new Intl.NumberFormat('es-CO', {
@@ -28,7 +35,7 @@ type Load =
   | { phase: 'loading' }
   | { phase: 'not-found' }
   | { phase: 'error' }
-  | { phase: 'ready'; employee: Employee }
+  | { phase: 'ready'; employee: EmployeeDetail }
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -42,6 +49,7 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
 // HU-2.3: full record of one employee, grouped as personal and employment data.
 export function EmployeeDetailPage() {
   const { employeeId } = useParams()
+  const { user } = useAuth()
   const [load, setLoad] = useState<Load>({ phase: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
 
@@ -168,6 +176,10 @@ export function EmployeeDetailPage() {
                 </DetailItem>
               </dl>
             </div>
+
+            {user?.role === 'ADMIN' && employee.has_account && (
+              <ResetPasswordCard employee={employee} />
+            )}
           </div>
         </>
       )}

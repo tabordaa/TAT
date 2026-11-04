@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
-from app.api.deps import DbSession, HrStaff
+from app.api.deps import Admin, DbSession, HrStaff
 from app.core.security import generate_temporary_password, hash_password
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus
@@ -19,6 +19,7 @@ from app.schemas.employee import (
     CountItem,
     EmployeeCreate,
     EmployeeCreatedResponse,
+    EmployeeDetailResponse,
     EmployeeListItem,
     EmployeeListResponse,
     EmployeeOverview,
@@ -330,13 +331,7 @@ def get_employee_overview(
     )
 
 
-@router.get("/{employee_id}", response_model=EmployeeResponse)
-def get_employee(
-    employee_id: uuid.UUID,  # a malformed id is rejected with 422 before reaching us
-    db: DbSession,
-    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
-) -> Employee:
-    """HU-2.3: full record of one employee (any status, INACTIVO included)."""
+def _get_employee_or_404(db: Session, employee_id: uuid.UUID) -> Employee:
     employee = db.get(Employee, employee_id)
     if employee is None:
         raise HTTPException(
@@ -344,3 +339,73 @@ def get_employee(
             detail="Employee not found",
         )
     return employee
+
+
+@router.get("/{employee_id}", response_model=EmployeeDetailResponse)
+def get_employee(
+    employee_id: uuid.UUID,  # a malformed id is rejected with 422 before reaching us
+    db: DbSession,
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+) -> EmployeeDetailResponse:
+    """HU-2.3: full record of one employee (any status, INACTIVO included)."""
+    employee = _get_employee_or_404(db, employee_id)
+    account_id = db.scalar(select(User.id).where(User.employee_id == employee.id))
+    return EmployeeDetailResponse(
+        **EmployeeResponse.model_validate(employee).model_dump(),
+        has_account=account_id is not None,
+    )
+
+
+@router.post("/{employee_id}/account/reset-password", response_model=AccountCreated)
+def reset_account_password(
+    employee_id: uuid.UUID,
+    request: Request,
+    db: DbSession,
+    current_user: Admin,  # session required (401) and ADMIN role (403)
+) -> AccountCreated:
+    """HU-1.5: replace a forgotten password with a new temporary one.
+
+    It also restores access for a rehired employee: rehiring does not reopen the
+    account by itself, that decision belongs to an administrator (HU-3.1).
+    """
+    employee = _get_employee_or_404(db, employee_id)
+    account = db.scalar(select(User).where(User.employee_id == employee.id))
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This employee has no access account",
+        )
+    if account.id == current_user.id:
+        # A reset would lock the admin out of their own session in mid-action.
+        raise _conflict("account", "Use the change password option for your own account")
+    if employee.status is not EmployeeStatus.ACTIVO:
+        raise _conflict("status", "An inactive employee cannot have access")
+
+    temporary_password = generate_temporary_password()
+    changes: dict[str, tuple[object, object]] = {
+        "must_change_password": (account.must_change_password, True)
+    }
+    if not account.is_active:
+        changes["is_active"] = (False, True)
+
+    account.hashed_password = hash_password(temporary_password)  # the old one is gone
+    account.must_change_password = True
+    account.is_active = True
+    account.token_version += 1  # open sessions die with the old password
+    record_audit(
+        db,
+        actor=current_user,
+        request=request,
+        action=AuditAction.PASSWORD_RESET,
+        entity_type="user",
+        entity_id=account.id,
+        changes=changes,
+    )
+    db.commit()
+
+    return AccountCreated(
+        email=account.email,
+        role=account.role,
+        temporary_password=temporary_password,
+        must_change_password=True,
+    )

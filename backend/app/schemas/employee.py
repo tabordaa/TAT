@@ -101,8 +101,14 @@ class EmployeeResponse(BaseModel):
     created_at: datetime
 
 
+class EmployeeDetailResponse(EmployeeResponse):
+    """Response of GET /employees/{id}: also says whether a login account exists."""
+
+    has_account: bool
+
+
 class AccountCreated(BaseModel):
-    """The login account created together with an employee (HU-1.4).
+    """A login account with a fresh temporary password (HU-1.4 and HU-1.5).
 
     `temporary_password` is in plain text only in this one response: the
     database keeps just its hash, so it can never be shown again.
