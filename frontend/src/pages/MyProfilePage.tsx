@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { getMyEmployee } from '../api/me'
+import { getMyEmployee, MY_PHOTO_URL } from '../api/me'
+import { ContactForm } from '../components/ContactForm'
 import {
   EmployeeRecordHeader,
   EmploymentDataSection,
@@ -20,6 +21,7 @@ type Load =
 export function MyProfilePage() {
   const [load, setLoad] = useState<Load>({ phase: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
+  const [photoVersion, setPhotoVersion] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -74,10 +76,21 @@ export function MyProfilePage() {
 
       {load.phase === 'ready' && (
         <>
-          <EmployeeRecordHeader employee={load.employee} />
+          <EmployeeRecordHeader
+            employee={load.employee}
+            // The version changes the URL, so a new photo replaces the old one on screen.
+            photoUrl={`${MY_PHOTO_URL}?v=${photoVersion}`}
+          />
           <div className="detail-sections">
             <PersonalDataSection employee={load.employee} />
             <EmploymentDataSection employee={load.employee} />
+            <ContactForm
+              employee={load.employee}
+              onSaved={(employee) => {
+                setLoad({ phase: 'ready', employee })
+                setPhotoVersion((version) => version + 1)
+              }}
+            />
           </div>
         </>
       )}

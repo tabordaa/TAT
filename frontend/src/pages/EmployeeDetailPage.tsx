@@ -95,7 +95,10 @@ export function EmployeeDetailPage() {
 
       {employee !== null && (
         <>
-          <EmployeeRecordHeader employee={employee} />
+          <EmployeeRecordHeader
+            employee={employee}
+            photoUrl={`/api/employees/${encodeURIComponent(employee.id)}/photo`}
+          />
 
           <div className="detail-sections">
             <PersonalDataSection employee={employee} />

@@ -91,6 +91,8 @@ class EmployeeResponse(BaseModel):
     document_number: str
     email: str
     phone: str | None
+    address: str | None
+    has_photo: bool
     position: str
     area: str
     salary: Decimal
@@ -99,6 +101,19 @@ class EmployeeResponse(BaseModel):
     end_date: date | None
     status: EmployeeStatus
     created_at: datetime
+
+
+class ContactUpdate(BaseModel):
+    """HU-2.7: the only fields employees may change about themselves.
+
+    extra="forbid" answers 422 to anything else, such as salary or position.
+    A field left out stays as it is; an explicit null clears it.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    phone: str | None = Field(default=None, pattern=r"^\+?[0-9 ()-]{7,30}$")
+    address: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class EmployeeDetailResponse(EmployeeResponse):

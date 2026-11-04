@@ -883,3 +883,8 @@ a {
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
+
+/* Profile photo (HU-2.7) */
+.avatar-photo {
+  object-fit: cover;
+}

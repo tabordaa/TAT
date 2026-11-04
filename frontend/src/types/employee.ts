@@ -70,8 +70,16 @@ export interface EmployeeConflict {
 /** Response of GET /employees/{id} (mirrors backend EmployeeResponse). */
 export interface Employee extends Omit<EmployeeCreatePayload, 'account_role'> {
   id: string
+  address: string | null
+  has_photo: boolean
   status: EmployeeStatus
   created_at: string
+}
+
+/** Body of PATCH /me/employee (HU-2.7). */
+export interface ContactPayload {
+  phone: string | null
+  address: string | null
 }
 
 /** Response of GET /employees/{id}: also says whether a login account exists. */

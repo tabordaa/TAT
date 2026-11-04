@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { CONTRACT_TYPES, DOCUMENT_TYPES, type Employee } from '../types/employee'
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', { dateStyle: 'long', timeZone: 'UTC' })
@@ -29,12 +29,37 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
   )
 }
 
-export function EmployeeRecordHeader({ employee }: { employee: Employee }) {
-  return (
-    <div className="detail-header">
+/** The private photo, served by the API, or the initials if there is none or it fails to load. */
+function Avatar({ employee, photoUrl }: { employee: Employee; photoUrl: string }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+
+  if (!employee.has_photo || failedUrl === photoUrl) {
+    return (
       <span className="avatar avatar-lg" aria-hidden="true">
         {getInitials(employee)}
       </span>
+    )
+  }
+  return (
+    <img
+      className="avatar avatar-lg avatar-photo"
+      src={photoUrl}
+      alt=""
+      onError={() => setFailedUrl(photoUrl)}
+    />
+  )
+}
+
+export function EmployeeRecordHeader({
+  employee,
+  photoUrl,
+}: {
+  employee: Employee
+  photoUrl: string
+}) {
+  return (
+    <div className="detail-header">
+      <Avatar employee={employee} photoUrl={photoUrl} />
       <div className="detail-header-text">
         <div className="detail-title-row">
           <h1 className="page-title">
@@ -65,6 +90,7 @@ export function PersonalDataSection({ employee }: { employee: Employee }) {
         <DetailItem label="Número de documento">{employee.document_number}</DetailItem>
         <DetailItem label="Correo electrónico">{employee.email}</DetailItem>
         <DetailItem label="Teléfono">{employee.phone ?? 'No registrado'}</DetailItem>
+        <DetailItem label="Dirección">{employee.address ?? 'No registrada'}</DetailItem>
       </dl>
     </div>
   )

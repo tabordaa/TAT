@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     login_max_failures_per_ip: int = Field(default=30, gt=0)
     login_failure_window_seconds: int = Field(default=900, gt=0)
 
+    # Profile photos (HU-2.7). Optional so the API still starts without Storage:
+    # only the photo endpoints depend on them, and they answer 503 until set.
+    supabase_url: str | None = None
+    supabase_service_role_key: SecretStr | None = None
+    supabase_storage_bucket: str | None = None
+
     @field_validator("jwt_secret_key")
     @classmethod
     def _jwt_secret_min_length(cls, value: SecretStr) -> SecretStr:

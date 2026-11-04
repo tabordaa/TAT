@@ -108,6 +108,9 @@ class Employee(Base):
     document_number: Mapped[str] = mapped_column(String(20))
     email: Mapped[str] = mapped_column(String(255))  # stored lowercase
     phone: Mapped[str | None] = mapped_column(String(30))
+    address: Mapped[str | None] = mapped_column(String(200))
+    # Object path in the private bucket. Internal: the API exposes only has_photo.
+    photo_path: Mapped[str | None] = mapped_column(String(255))
 
     # Employment data
     position: Mapped[str] = mapped_column(String(120))
@@ -128,3 +131,7 @@ class Employee(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    @property
+    def has_photo(self) -> bool:
+        return self.photo_path is not None

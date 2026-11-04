@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.api.deps import Admin, DbSession, EmployeeReader, HrStaff
+from app.api.me import Storage, photo_response
 from app.core.security import generate_temporary_password, hash_password
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus
@@ -354,6 +355,17 @@ def get_employee(
         **EmployeeResponse.model_validate(employee).model_dump(),
         has_account=account_id is not None,
     )
+
+
+@router.get("/{employee_id}/photo")
+def get_employee_photo(
+    employee_id: uuid.UUID,
+    db: DbSession,
+    current_user: EmployeeReader,  # session required (401) and role check (403)
+    storage: Storage,
+) -> Response:
+    """HU-2.7: the private photo, only through the API and after the role check."""
+    return photo_response(_get_employee_or_404(db, employee_id), storage)
 
 
 @router.post("/{employee_id}/account/reset-password", response_model=AccountCreated)
