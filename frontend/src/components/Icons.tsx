@@ -30,6 +30,12 @@ export const IconLogout = (p: IconProps) => (
     <path d="M21 12H9" />
   </Svg>
 )
+export const IconShield = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3 5 6v5c0 4.5 3 8.5 7 10 4-1.5 7-5.5 7-10V6z" />
+    <path d="m9 12 2 2 4-4" />
+  </Svg>
+)
 export const IconUser = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="8" r="4" />
