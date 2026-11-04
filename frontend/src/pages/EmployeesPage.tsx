@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import axios from 'axios'
 import { listEmployees } from '../api/employees'
+import { useAuth } from '../auth/useAuth'
 import {
   IconAlert,
   IconCheck,
@@ -54,6 +55,7 @@ type Load =
 export function EmployeesPage() {
   const createdName = getCreatedName(useLocation().state)
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   // searchText follows every keystroke (so the input feels instant); appliedQ is
   // what the API is actually asked, updated only after the debounce.
@@ -108,9 +110,11 @@ export function EmployeesPage() {
           <h1 className="page-title">Empleados</h1>
           <p className="page-subtitle">Gestión de contratos y cargos de la organización</p>
         </div>
-        <Link to="/empleados/nuevo" className="btn btn-primary">
-          <IconUserPlus /> Registrar empleado
-        </Link>
+        {user?.role !== 'MANAGER' && (
+          <Link to="/empleados/nuevo" className="btn btn-primary">
+            <IconUserPlus /> Registrar empleado
+          </Link>
+        )}
       </div>
 
       {createdName !== null && (
