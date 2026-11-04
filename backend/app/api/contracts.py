@@ -1,7 +1,8 @@
 """HU-3.1 Contract assignment and rehire, HU-3.3 Contract termination."""
 
 import uuid
-from datetime import date
+from datetime import date, timedelta
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import func, select, update
@@ -21,6 +22,7 @@ from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus, EmploymentContract
 from app.models.user import User
 from app.schemas.employee import (
+    ContractAlert,
     ContractAssign,
     ContractResponse,
     ContractTerminate,
@@ -29,6 +31,9 @@ from app.schemas.employee import (
 from app.services.audit import record_audit
 
 router = APIRouter(prefix="/employees", tags=["contracts"])
+
+ALERT_WINDOW_DAYS = 30
+ALERT_LIMIT = 100
 
 
 def _lock_employee(db: Session, employee_id: uuid.UUID) -> Employee:
@@ -68,6 +73,45 @@ def _close_open_contracts(db: Session, employee_id: uuid.UUID, on: date) -> None
         )
         .values(terminated_on=on)
     )
+
+
+@router.get("/contract-alerts", response_model=list[ContractAlert])
+def list_contract_alerts(
+    db: DbSession,
+    current_user: EmployeeReader,  # session required (401) and role check (403)
+) -> list[ContractAlert]:
+    """HU-3.2: active employees whose contract ends in under 30 days.
+
+    A contract already past its date stays listed: an active employee without a
+    valid contract is the case that most needs someone's attention.
+    """
+    now = today()
+    rows = db.scalars(
+        select(Employee)
+        .where(
+            Employee.status == EmployeeStatus.ACTIVO,
+            Employee.end_date.is_not(None),
+            Employee.end_date < now + timedelta(days=ALERT_WINDOW_DAYS),
+        )
+        .order_by(Employee.end_date, Employee.last_names, Employee.id)
+        .limit(ALERT_LIMIT)
+    ).all()
+    alerts = []
+    for employee in rows:
+        end_date = cast(date, employee.end_date)  # filtered above: never None here
+        days_left = (end_date - now).days
+        alerts.append(
+            ContractAlert(
+                id=employee.id,
+                first_names=employee.first_names,
+                last_names=employee.last_names,
+                position=employee.position,
+                end_date=end_date,
+                days_left=days_left,
+                state="VENCIDO" if days_left < 0 else "POR_VENCER",
+            )
+        )
+    return alerts
 
 
 @router.get("/{employee_id}/contracts", response_model=list[ContractResponse])
