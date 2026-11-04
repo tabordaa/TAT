@@ -1,10 +1,15 @@
 """HU-1.1 Login, HU-1.3 Logout and the current-session endpoint."""
 
+import hashlib
+import logging
+
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession, resolve_user_from_cookie
 from app.core.config import get_settings
+from app.core.network import client_ip
+from app.core.rate_limit import LoginThrottle
 from app.core.security import (
     DUMMY_HASH,
     create_access_token,
@@ -14,6 +19,15 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+logger = logging.getLogger("tat.auth")
+
+_settings = get_settings()
+login_throttle = LoginThrottle(
+    account_failures=_settings.login_max_failures_per_account,
+    ip_failures=_settings.login_max_failures_per_ip,
+    window_seconds=_settings.login_failure_window_seconds,
+)
 
 
 def _invalid_credentials() -> HTTPException:
@@ -25,19 +39,54 @@ def _invalid_credentials() -> HTTPException:
     )
 
 
-@router.post("/login", response_model=UserResponse)
-def login(credentials: LoginRequest, response: Response, db: DbSession) -> User:
-    settings = get_settings()
-    email = credentials.email.lower()
+def _email_reference(email: str) -> str:
+    # Enough to correlate attempts in the logs without storing the address:
+    # people also type their password into the email field by mistake.
+    return hashlib.sha256(email.encode()).hexdigest()[:12]
 
+
+def _authenticate(email: str, password: str, db: DbSession) -> User | None:
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
-        verify_password(credentials.password, DUMMY_HASH)  # constant-time path
-        raise _invalid_credentials()
-    if not verify_password(credentials.password, user.hashed_password):
-        raise _invalid_credentials()
+        verify_password(password, DUMMY_HASH)  # constant-time path
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
     if not user.is_active:
+        return None
+    return user
+
+
+@router.post("/login", response_model=UserResponse)
+def login(
+    credentials: LoginRequest, request: Request, response: Response, db: DbSession
+) -> User:
+    settings = get_settings()
+    email = credentials.email.lower()
+    ip = client_ip(request)
+
+    # Checked before hashing: a blocked attacker must not consume Argon2 time.
+    # It never reveals whether the email exists: unknown ones count the same.
+    retry_after = login_throttle.retry_after(ip, email)
+    if retry_after > 0:
+        logger.warning(
+            "login blocked ip=%s email_ref=%s retry_after=%s",
+            ip,
+            _email_reference(email),
+            retry_after,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed attempts. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    user = _authenticate(email, credentials.password, db)
+    if user is None:
+        login_throttle.record_failure(ip, email)
+        logger.warning("login failed ip=%s email_ref=%s", ip, _email_reference(email))
         raise _invalid_credentials()
+    login_throttle.record_success(ip, email)
 
     token = create_access_token(
         subject=str(user.id),

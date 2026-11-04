@@ -1,14 +1,18 @@
 """FastAPI application entry point."""
 
+import logging
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.auth import router as auth_router
 from app.api.employees import router as employees_router
 from app.api.health import router as health_router
 from app.core.config import get_settings
+
+logger = logging.getLogger("tat")
 
 
 async def _security_headers(
@@ -22,7 +26,23 @@ async def _security_headers(
     return response
 
 
+async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    # The details stay in the server log; the client learns nothing internal.
+    logger.exception("unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 def create_app() -> FastAPI:
+    # A no-op if the server already configured logging.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
     settings = get_settings()
     # The interactive docs describe the whole API to anyone: development only.
     public_docs = settings.environment != "production"
@@ -36,6 +56,7 @@ def create_app() -> FastAPI:
     )
 
     app.middleware("http")(_security_headers)
+    app.add_exception_handler(Exception, _unhandled_error)
 
     app.add_middleware(
         CORSMiddleware,

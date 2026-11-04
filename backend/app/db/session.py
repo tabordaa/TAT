@@ -11,6 +11,9 @@ engine = create_engine(
     get_settings().database_url.get_secret_value(),
     # Checks the connection before using it; the pooler may close idle ones.
     pool_pre_ping=True,
+    # Keeps statement values (password hashes, salaries) out of error messages
+    # and therefore out of the logs.
+    hide_parameters=True,
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
