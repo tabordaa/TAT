@@ -888,3 +888,43 @@ a {
 .avatar-photo {
   object-fit: cover;
 }
+
+/* Contract alerts and termination (HU-3.2, HU-3.3) */
+.contract-alerts {
+  margin-top: 16px;
+}
+.badge-danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.badge-warning {
+  background: #fff4e5;
+  color: #92400e;
+}
+.btn-danger {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #ffffff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #912018;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(16, 24, 40, 0.5);
+}
+.modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h2 {
+  margin-top: 0;
+}

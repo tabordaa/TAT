@@ -92,7 +92,13 @@ export function RegisterEmployeePage() {
 
   function handleChange(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const name = event.target.name as keyof EmployeeFormValues
-    setValues((prev) => ({ ...prev, [name]: event.target.value }))
+    setValues((prev) => {
+      const next = { ...prev, [name]: event.target.value }
+      // HU-3.1 CA03: a contract without an end date cannot keep one typed before.
+      const hasEndDate =
+        next.contractType !== '' && CONTRACTS_WITH_END_DATE.includes(next.contractType)
+      return name === 'contractType' && !hasEndDate ? { ...next, endDate: '' } : next
+    })
     // Clear the error of the field being edited.
     setErrors((prev) => ({ ...prev, [name]: undefined }))
     setSubmitError(null)
@@ -267,13 +273,13 @@ export function RegisterEmployeePage() {
           </Field>
           <Field
             id="endDate"
-            label={needsEndDate ? 'Fecha de finalización' : 'Fecha de finalización (opcional)'}
+            label={needsEndDate ? 'Fecha de finalización' : 'Fecha de finalización (no aplica)'}
             required={needsEndDate}
             hint="Condicional"
             help="Aplica para contratos a término fijo, obra o aprendizaje."
             error={errors.endDate}
           >
-            <input id="endDate" name="endDate" type="date" min={values.startDate || undefined} value={values.endDate} onChange={handleChange} aria-invalid={errors.endDate !== undefined} aria-describedby={describedBy('endDate')} />
+            <input id="endDate" name="endDate" type="date" disabled={!needsEndDate} min={values.startDate || undefined} value={values.endDate} onChange={handleChange} aria-invalid={errors.endDate !== undefined} aria-describedby={describedBy('endDate')} />
           </Field>
           <div className="field">
             <div className="field-label-row">
