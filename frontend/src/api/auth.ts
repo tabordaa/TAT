@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { LoginCredentials, User } from '../types/auth'
+import type { ChangePasswordPayload, LoginCredentials, User } from '../types/auth'
 
 export async function login(credentials: LoginCredentials): Promise<User> {
   const { data } = await api.post<User>('/auth/login', credentials)
@@ -15,4 +15,9 @@ export async function fetchCurrentUser(): Promise<User> {
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout')
+}
+
+export async function changePassword(payload: ChangePasswordPayload): Promise<User> {
+  const { data } = await api.post<User>('/auth/change-password', payload)
+  return data
 }

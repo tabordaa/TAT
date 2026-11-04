@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import axios from 'axios'
 import * as authApi from '../api/auth'
 import { api } from '../api/client'
-import type { LoginCredentials, User } from '../types/auth'
+import type { ChangePasswordPayload, LoginCredentials, User } from '../types/auth'
 import { AuthContext, type AuthContextValue } from './AuthContext'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -62,9 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const changePassword = useCallback(async (payload: ChangePasswordPayload) => {
+    const updatedUser = await authApi.changePassword(payload)
+    setUser(updatedUser)
+  }, [])
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, login, logout }),
-    [user, isLoading, login, logout],
+    () => ({ user, isLoading, login, logout, changePassword }),
+    [user, isLoading, login, logout, changePassword],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
