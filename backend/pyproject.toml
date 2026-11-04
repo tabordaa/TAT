@@ -1,0 +1,9 @@
+[tool.ruff.lint.isort]
+# backend/alembic/ holds our migrations; without this ruff mistakes the alembic
+# package for first-party code because a folder with that name exists here.
+known-third-party = ["alembic"]
+
+[tool.mypy]
+# Teaches mypy that BaseSettings fields come from the environment, so
+# Settings() needs no arguments.
+plugins = ["pydantic.mypy"]
