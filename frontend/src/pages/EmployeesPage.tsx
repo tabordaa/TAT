@@ -1,12 +1,13 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import axios from 'axios'
-import { listEmployees } from '../api/employees'
+import { exportEmployees, listEmployees } from '../api/employees'
 import { useAuth } from '../auth/useAuth'
 import {
   IconAlert,
   IconCheck,
   IconClose,
+  IconDownload,
   IconSearch,
   IconUserPlus,
   IconUsers,
@@ -65,6 +66,8 @@ export function EmployeesPage() {
   const [page, setPage] = useState(1)
   const [load, setLoad] = useState<Load>({ phase: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const debouncedText = useDebouncedValue(searchText, SEARCH_DEBOUNCE_MS)
 
   useEffect(() => {
@@ -98,6 +101,30 @@ export function EmployeesPage() {
     }
   }
 
+  async function handleExport() {
+    setIsExporting(true)
+    setExportError(null)
+    try {
+      const { blob, filename } = await exportEmployees({ q: appliedQ, status })
+      // A temporary link to the file in memory; the cookie already went with the request.
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      // Released on the next tick: revoking at once can cancel the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch (error) {
+      setExportError(
+        axios.isAxiosError(error) && error.response?.status === 422
+          ? 'Hay demasiados empleados para un archivo. Filtra la lista y vuelve a exportar.'
+          : 'No se pudo exportar la lista. Inténtalo de nuevo.',
+      )
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const data = load.phase === 'ready' ? load.data : null
   const totalPages = data === null ? 1 : Math.max(1, Math.ceil(data.total / data.size))
   const isFiltered = status !== '' || appliedQ !== ''
@@ -110,12 +137,32 @@ export function EmployeesPage() {
           <h1 className="page-title">Empleados</h1>
           <p className="page-subtitle">Gestión de contratos y cargos de la organización</p>
         </div>
-        {user?.role !== 'MANAGER' && (
-          <Link to="/empleados/nuevo" className="btn btn-primary">
-            <IconUserPlus /> Registrar empleado
-          </Link>
-        )}
+        <div className="page-actions">
+          {/* HU-5.2: exports exactly the filters applied to the table (CA02). */}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={isExporting}
+            onClick={() => void handleExport()}
+          >
+            <IconDownload /> {isExporting ? 'Exportando…' : 'Exportar'}
+          </button>
+          {user?.role !== 'MANAGER' && (
+            <Link to="/empleados/nuevo" className="btn btn-primary">
+              <IconUserPlus /> Registrar empleado
+            </Link>
+          )}
+        </div>
       </div>
+
+      {exportError !== null && (
+        <div className="alert alert-error" role="alert">
+          <IconAlert size={20} />
+          <div className="alert-body">
+            <span>{exportError}</span>
+          </div>
+        </div>
+      )}
 
       {createdName !== null && (
         <div className="alert alert-success" role="status">
