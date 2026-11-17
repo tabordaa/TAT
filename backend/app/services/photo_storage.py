@@ -37,8 +37,32 @@ def content_type_of(path: str) -> str:
     return _TYPE_BY_EXTENSION[path.rsplit(".", 1)[-1]]
 
 
+_MAX_DETAIL_CHARS = 200
+
+
 class StorageError(Exception):
-    """Storage failed or is not configured. Details stay in the server log."""
+    """Storage failed or is not configured. Details stay in the server log.
+
+    ``detail`` holds the reason Supabase gave (e.g. "Bucket not found"). It is
+    kept out of ``str()`` on purpose: only the operator script
+    ``scripts.check_storage`` prints it, never the API or its logs.
+    """
+
+    def __init__(self, message: str, detail: str | None = None) -> None:
+        super().__init__(message)
+        self.detail = detail
+
+
+def _supabase_reason(response: httpx.Response | None) -> str | None:
+    """The ``message`` field of a Supabase error body, shortened, or None."""
+    if response is None:
+        return None
+    try:
+        body = response.json()
+    except ValueError:
+        return None
+    message = body.get("message") if isinstance(body, dict) else None
+    return str(message)[:_MAX_DETAIL_CHARS] if message else None
 
 
 class PhotoStorage(Protocol):
@@ -52,7 +76,10 @@ class PhotoStorage(Protocol):
 class SupabasePhotoStorage:
     def __init__(self, url: str, service_key: str, bucket: str) -> None:
         self._base = f"{url.rstrip('/')}/storage/v1/object/{bucket}"
-        self._headers = {"Authorization": f"Bearer {service_key}"}
+        # The new Supabase secret keys (sb_secret_...) are not JWTs: the API
+        # gateway identifies the project by the `apikey` header. Legacy JWT keys
+        # accept both headers too, so sending both works with either kind.
+        self._headers = {"apikey": service_key, "Authorization": f"Bearer {service_key}"}
 
     def _request(
         self,
@@ -73,9 +100,11 @@ class SupabasePhotoStorage:
             response.raise_for_status()
         except httpx.HTTPError as exc:
             # From here on, only the type and status: never the URL or headers.
-            status = getattr(getattr(exc, "response", None), "status_code", "no response")
+            failed = exc.response if isinstance(exc, httpx.HTTPStatusError) else None
+            status = failed.status_code if failed is not None else "no response"
             raise StorageError(
-                f"Storage {method} failed: {type(exc).__name__} ({status})"
+                f"Storage {method} failed: {type(exc).__name__} ({status})",
+                detail=_supabase_reason(failed),
             ) from None
         return response
 
