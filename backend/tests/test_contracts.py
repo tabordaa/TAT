@@ -484,9 +484,15 @@ def test_termination_is_audited(
 
 
 def test_the_departure_appears_in_the_dashboard(
-    auth_client: TestClient, employee: dict[str, Any]
+    auth_client: TestClient, make_employee_payload: PayloadFactory
 ) -> None:
-    _terminate(auth_client, employee["id"])
+    # The list shows only the 5 latest departures of the SHARED database, and
+    # the browser tests add departures every day. Today's date plus a surname
+    # that sorts first (the tie-breaker) keeps this one at the top.
+    employee = auth_client.post(
+        "/employees", json=make_employee_payload(last_names="Abad Acosta", start_date=START)
+    ).json()
+    assert _terminate(auth_client, employee["id"], today().isoformat()).status_code == 200
     ids = [
         person["id"]
         for person in auth_client.get("/employees/overview").json()["recent_departures"]
