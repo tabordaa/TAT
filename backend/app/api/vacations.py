@@ -2,7 +2,7 @@
 decisions on them (HU-4.2)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
@@ -18,6 +18,7 @@ from app.models.employee import Employee, EmployeeStatus
 from app.models.user import User
 from app.models.vacation import VacationRequest, VacationStatus
 from app.schemas.vacation import (
+    CalendarAbsence,
     VacationBalanceResponse,
     VacationInboxItem,
     VacationReject,
@@ -242,6 +243,45 @@ def reject_vacation_request(
     )
     db.commit()
     return _inbox_item(db, vacation, employee)
+
+
+def _month_bounds(month: str) -> tuple[date, date]:
+    """'2026-11' -> (2026-11-01, 2026-11-30). The pattern already checked the shape."""
+    year, number = int(month[:4]), int(month[5:])
+    first = date(year, number, 1)
+    following = date(year + number // 12, number % 12 + 1, 1)
+    return first, following - timedelta(days=1)
+
+
+@router.get("/vacation-calendar", response_model=list[CalendarAbsence])
+def get_vacation_calendar(
+    db: DbSession,
+    current_user: EmployeeReader,  # ADMIN, HR and MANAGER plan around absences
+    month: Annotated[str, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")],
+) -> list[CalendarAbsence]:
+    """HU-4.4: APPROVED vacations that touch the month (CA02), including those
+    that start before it or end after it; the calendar draws only its own days."""
+    first, last = _month_bounds(month)
+    rows = db.execute(
+        select(VacationRequest, Employee)
+        .join(Employee, Employee.id == VacationRequest.employee_id)
+        .where(
+            VacationRequest.status == VacationStatus.APROBADA,
+            VacationRequest.start_date <= last,
+            VacationRequest.end_date >= first,
+        )
+        .order_by(VacationRequest.start_date, Employee.last_names, Employee.first_names)
+    ).all()
+    return [
+        CalendarAbsence(
+            request_id=vacation.id,
+            employee_id=employee.id,
+            employee_name=f"{employee.first_names} {employee.last_names}",
+            start_date=vacation.start_date,
+            end_date=vacation.end_date,
+        )
+        for vacation, employee in rows
+    ]
 
 
 @router.get("/me/vacation-requests", response_model=list[VacationRequestResponse])

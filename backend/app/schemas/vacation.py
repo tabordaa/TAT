@@ -72,6 +72,17 @@ class VacationInboxItem(VacationRequestResponse):
     available_days: Decimal  # the balance the approval will be checked against
 
 
+class CalendarAbsence(BaseModel):
+    """HU-4.4: one approved absence that touches the month asked for. Only what
+    the calendar shows: no reason, no balance, no request history."""
+
+    request_id: uuid.UUID
+    employee_id: uuid.UUID
+    employee_name: str
+    start_date: date
+    end_date: date
+
+
 class VacationReject(BaseModel):
     """HU-4.2 CA03: rejecting requires a reason, which the employee will read."""
 
