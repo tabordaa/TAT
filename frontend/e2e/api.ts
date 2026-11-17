@@ -107,6 +107,32 @@ export async function signIn(page: Page, email: string, password: string): Promi
   expect(response.status(), 'sign in').toBe(200)
 }
 
+/** An employee with `daysOfService` and a PENDIENTE request they made themselves. */
+export async function createPendingVacation(
+  daysOfService: number,
+  start: string,
+  end: string,
+): Promise<CreatedEmployee & { requestId: string }> {
+  const created = await createEmployeeWithAccount('EMPLOYEE', {
+    startDate: businessDate(-daysOfService),
+  })
+  const context = await request.newContext({ baseURL: BASE_URL })
+  try {
+    const login = await context.post('/api/auth/login', {
+      data: { email: created.person.email, password: created.password },
+    })
+    expect(login.status(), 'employee sign in').toBe(200)
+    const response = await context.post('/api/me/vacation-requests', {
+      data: { start_date: start, end_date: end },
+    })
+    expect(response.status(), 'POST /me/vacation-requests').toBe(201)
+    const body = (await response.json()) as { id: string }
+    return { ...created, requestId: body.id }
+  } finally {
+    await context.dispose()
+  }
+}
+
 /** Ends the current contract as the seeded ADMIN. */
 export async function terminateContract(employeeId: string, endDate = businessDate()): Promise<void> {
   const admin = await apiAs('ADMIN')

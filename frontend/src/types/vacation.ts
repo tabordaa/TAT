@@ -39,3 +39,11 @@ export interface VacationRequest {
   created_at: string
   decided_at: string | null
 }
+
+/** GET /vacation-requests (HU-4.2): a request in HR's inbox. */
+export interface VacationInboxItem extends VacationRequest {
+  employee_id: string
+  employee_name: string
+  /** What the employee has available; the approval is checked against it. */
+  available_days: string
+}

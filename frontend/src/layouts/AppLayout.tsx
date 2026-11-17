@@ -80,6 +80,11 @@ export function AppLayout() {
               </NavLink>
             </>
           )}
+          {(user?.role === 'ADMIN' || user?.role === 'HR') && (
+            <NavLink to="/vacaciones/solicitudes" className="nav-item">
+              <IconCalendar /> Solicitudes de vacaciones
+            </NavLink>
+          )}
           {user?.role === 'ADMIN' && (
             <NavLink to="/auditoria" className="nav-item">
               <IconShield /> Auditoría
