@@ -4,6 +4,7 @@ import { useAuth } from '../auth/useAuth'
 import { ROLE_LABELS } from '../types/auth'
 import { BrandLogo } from '../components/BrandLogo'
 import {
+  IconCalendar,
   IconChart,
   IconGrid,
   IconLogout,
@@ -70,9 +71,14 @@ export function AppLayout() {
             </>
           )}
           {user?.employee_id != null && (
-            <NavLink to="/mi-perfil" className="nav-item">
-              <IconUser /> Mi perfil
-            </NavLink>
+            <>
+              <NavLink to="/mi-perfil" className="nav-item">
+                <IconUser /> Mi perfil
+              </NavLink>
+              <NavLink to="/mis-vacaciones" className="nav-item">
+                <IconCalendar /> Mis vacaciones
+              </NavLink>
+            </>
           )}
           {user?.role === 'ADMIN' && (
             <NavLink to="/auditoria" className="nav-item">

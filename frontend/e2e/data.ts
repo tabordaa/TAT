@@ -98,3 +98,17 @@ export function businessDate(days = 0): string {
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
 }
+
+/** A future Monday in Colombia, `weeksAhead` weeks from now (1 = the next one). */
+export function nextMonday(weeksAhead = 1): string {
+  const today = new Date(`${businessDate()}T12:00:00Z`)
+  const toMonday = (8 - today.getUTCDay()) % 7 || 7 // Sunday is 0: one day ahead
+  return businessDate(toMonday + 7 * (weeksAhead - 1))
+}
+
+/** `days` after a "YYYY-MM-DD" date. */
+export function addDays(value: string, days: number): string {
+  const date = new Date(`${value}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}

@@ -12,3 +12,30 @@ export interface VacationBalance {
   available_days: string
   requestable_days: string
 }
+
+export type VacationStatus = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA' | 'CANCELADA'
+
+export const VACATION_STATUS_LABELS: Record<VacationStatus, string> = {
+  PENDIENTE: 'Pendiente',
+  APROBADA: 'Aprobada',
+  RECHAZADA: 'Rechazada',
+  CANCELADA: 'Cancelada',
+}
+
+/** POST /me/vacation-requests: only the dates; the server decides the rest. */
+export interface VacationRequestPayload {
+  start_date: string
+  end_date: string
+}
+
+/** A vacation request (HU-4.1). Dates as YYYY-MM-DD, instants as ISO 8601. */
+export interface VacationRequest {
+  id: string
+  start_date: string
+  end_date: string
+  business_days: number
+  status: VacationStatus
+  reason: string | null
+  created_at: string
+  decided_at: string | null
+}

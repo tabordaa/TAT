@@ -87,6 +87,22 @@ def _days_in(db: Session, employee_id: uuid.UUID, since: date, status: VacationS
     return int(total or 0)
 
 
+def overlaps_existing(
+    db: Session, employee_id: uuid.UUID, start: date, end: date, exclude: uuid.UUID | None = None
+) -> bool:
+    """Decision 7: a range may not touch a PENDING or APPROVED request of the same
+    employee. Two ranges overlap when each one starts before the other ends."""
+    query = select(VacationRequest.id).where(
+        VacationRequest.employee_id == employee_id,
+        VacationRequest.status.in_((VacationStatus.PENDIENTE, VacationStatus.APROBADA)),
+        VacationRequest.start_date <= end,
+        VacationRequest.end_date >= start,
+    )
+    if exclude is not None:
+        query = query.where(VacationRequest.id != exclude)
+    return db.scalar(query.limit(1)) is not None
+
+
 def vacation_balance(db: Session, employee: Employee) -> VacationBalance:
     """The balance as of the business date (Colombia), from the contract in force."""
     contract = current_contract(db, employee.id) if employee.status is EmployeeStatus.ACTIVO else None
