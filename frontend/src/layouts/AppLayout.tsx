@@ -68,6 +68,9 @@ export function AppLayout() {
               <NavLink to="/empleados" className="nav-item">
                 <IconUsers /> Empleados
               </NavLink>
+              <NavLink to="/vacaciones/calendario" className="nav-item">
+                <IconCalendar /> Calendario de ausencias
+              </NavLink>
             </>
           )}
           {user?.employee_id != null && (

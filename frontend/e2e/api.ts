@@ -133,6 +133,17 @@ export async function createPendingVacation(
   }
 }
 
+/** Approves a vacation request as the seeded HR user. */
+export async function approveVacation(requestId: string): Promise<void> {
+  const hr = await apiAs('HR')
+  try {
+    const response = await hr.post(`/api/vacation-requests/${requestId}/approve`)
+    expect(response.status(), 'approve the vacation request').toBe(200)
+  } finally {
+    await hr.dispose()
+  }
+}
+
 /** Ends the current contract as the seeded ADMIN. */
 export async function terminateContract(employeeId: string, endDate = businessDate()): Promise<void> {
   const admin = await apiAs('ADMIN')

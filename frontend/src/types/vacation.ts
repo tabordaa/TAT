@@ -40,6 +40,15 @@ export interface VacationRequest {
   decided_at: string | null
 }
 
+/** GET /vacation-calendar (HU-4.4): an approved absence touching the month. */
+export interface CalendarAbsence {
+  request_id: string
+  employee_id: string
+  employee_name: string
+  start_date: string
+  end_date: string
+}
+
 /** GET /vacation-requests (HU-4.2): a request in HR's inbox. */
 export interface VacationInboxItem extends VacationRequest {
   employee_id: string

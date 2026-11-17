@@ -1,5 +1,6 @@
 import { api } from './client'
 import type {
+  CalendarAbsence,
   VacationBalance,
   VacationInboxItem,
   VacationRequest,
@@ -14,6 +15,18 @@ export async function getVacationInbox(
 ): Promise<VacationInboxItem[]> {
   const { data } = await api.get<VacationInboxItem[]>('/vacation-requests', {
     params: { status },
+    signal,
+  })
+  return data
+}
+
+/** GET /vacation-calendar?month=YYYY-MM (ADMIN, HR and MANAGER). */
+export async function getVacationCalendar(
+  month: string,
+  signal?: AbortSignal,
+): Promise<CalendarAbsence[]> {
+  const { data } = await api.get<CalendarAbsence[]>('/vacation-calendar', {
+    params: { month },
     signal,
   })
   return data
