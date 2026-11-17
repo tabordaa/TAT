@@ -20,7 +20,7 @@ from app.api.employees import (
 from app.core.clock import today
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus, EmploymentContract
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.employee import (
     ContractAlert,
     ContractAssign,
@@ -34,6 +34,39 @@ router = APIRouter(prefix="/employees", tags=["contracts"])
 
 ALERT_WINDOW_DAYS = 30
 ALERT_LIMIT = 100
+
+
+def _other_active_admins(db: Session, account_id: uuid.UUID) -> int:
+    """Active ADMIN accounts besides this one, with their rows locked.
+
+    The lock makes two simultaneous terminations queue up: if two admins end
+    each other's contract at once, the second one waits, then sees the first
+    admin already inactive and is refused. Without it both would count "one
+    more admin left" and the system could end up with none.
+    """
+    locked = db.scalars(
+        select(User.id)
+        .where(User.role == UserRole.ADMIN, User.is_active.is_(True), User.id != account_id)
+        .with_for_update()
+    ).all()
+    return len(locked)
+
+
+def _ensure_admin_can_leave(db: Session, account: User, actor: User) -> None:
+    """S12 (Kevin, 3 nov): HR never ends an ADMIN's contract, and the last
+    active ADMIN cannot be terminated (nobody could administer the system)."""
+    if account.role is not UserRole.ADMIN:
+        return
+    if actor.role is not UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "field": "account_role",
+                "message": "Only an administrator can terminate an administrator",
+            },
+        )
+    if account.is_active and _other_active_admins(db, account.id) == 0:
+        raise conflict("last_admin", "The last active administrator cannot be terminated")
 
 
 def _lock_employee(db: Session, employee_id: uuid.UUID) -> Employee:
@@ -244,6 +277,8 @@ def terminate_contract(
     account = db.scalar(select(User).where(User.employee_id == employee.id))
     if account is not None and account.id == current_user.id:
         raise conflict("account", "You cannot terminate your own contract")
+    if account is not None:
+        _ensure_admin_can_leave(db, account, current_user)
 
     changes: dict[str, tuple[object, object]] = {
         "status": (employee.status, EmployeeStatus.INACTIVO),
