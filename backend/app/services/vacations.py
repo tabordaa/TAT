@@ -15,7 +15,7 @@ while a request is created or approved.
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import ROUND_DOWN, Decimal
 
 from sqlalchemy import func, select
@@ -101,6 +101,32 @@ def overlaps_existing(
     if exclude is not None:
         query = query.where(VacationRequest.id != exclude)
     return db.scalar(query.limit(1)) is not None
+
+
+CANCELLED_ON_DEPARTURE = "Contrato finalizado"
+
+
+def cancel_pending_requests(
+    db: Session, employee_id: uuid.UUID, actor_id: uuid.UUID, when: datetime
+) -> int:
+    """Decision 8: when an employee leaves, nobody should approve their pending
+    requests later. They become CANCELADA in the departure's own transaction.
+    Approved ones are kept: they are history, and they stop counting anyway
+    because the balance only looks at the contract in force."""
+    pending = db.scalars(
+        select(VacationRequest)
+        .where(
+            VacationRequest.employee_id == employee_id,
+            VacationRequest.status == VacationStatus.PENDIENTE,
+        )
+        .with_for_update()
+    ).all()
+    for vacation in pending:
+        vacation.status = VacationStatus.CANCELADA
+        vacation.reason = CANCELLED_ON_DEPARTURE
+        vacation.decided_by_id = actor_id
+        vacation.decided_at = when
+    return len(pending)
 
 
 def vacation_balance(db: Session, employee: Employee) -> VacationBalance:

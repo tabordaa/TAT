@@ -1,7 +1,7 @@
 """HU-3.1 Contract assignment and rehire, HU-3.3 Contract termination."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -30,6 +30,7 @@ from app.schemas.employee import (
     EmployeeResponse,
 )
 from app.services.audit import record_audit
+from app.services.vacations import cancel_pending_requests
 
 router = APIRouter(prefix="/employees", tags=["contracts"])
 
@@ -283,6 +284,11 @@ def terminate_contract(
     employee.status = EmployeeStatus.INACTIVO
     employee.end_date = data.end_date
     _close_open_contracts(db, employee.id, data.end_date)
+    cancelled = cancel_pending_requests(
+        db, employee.id, current_user.id, datetime.now(timezone.utc)
+    )
+    if cancelled:
+        changes["pending_vacation_requests"] = (cancelled, 0)
     record_audit(
         db,
         actor=current_user,
