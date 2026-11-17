@@ -57,7 +57,7 @@ def provide_storage() -> PhotoStorage:
 Storage = Annotated[PhotoStorage, Depends(provide_storage)]
 
 
-def _own_employee(user: CurrentUser, db: DbSession) -> Employee:
+def own_employee(user: CurrentUser, db: DbSession) -> Employee:
     # An account may exist without a record, like the first administrator.
     employee = db.get(Employee, user.employee_id) if user.employee_id else None
     if employee is None:
@@ -81,7 +81,7 @@ def photo_response(employee: Employee, storage: PhotoStorage) -> Response:
 
 @router.get("/employee", response_model=EmployeeResponse)
 def get_my_employee(current_user: CurrentUser, db: DbSession) -> Employee:
-    return _own_employee(current_user, db)
+    return own_employee(current_user, db)
 
 
 @router.patch("/employee", response_model=EmployeeResponse)
@@ -89,7 +89,7 @@ def update_my_contact(
     data: ContactUpdate, request: Request, current_user: CurrentUser, db: DbSession
 ) -> Employee:
     """HU-2.7: contact fields only; saved at once in the shared employee record."""
-    employee = _own_employee(current_user, db)
+    employee = own_employee(current_user, db)
 
     changes: dict[str, tuple[object, object]] = {}
     for field, value in data.model_dump(exclude_unset=True).items():
@@ -113,7 +113,7 @@ def update_my_contact(
 
 @router.get("/employee/photo")
 def get_my_photo(current_user: CurrentUser, db: DbSession, storage: Storage) -> Response:
-    return photo_response(_own_employee(current_user, db), storage)
+    return photo_response(own_employee(current_user, db), storage)
 
 
 @router.put("/employee/photo", response_model=EmployeeResponse)
@@ -124,7 +124,7 @@ def update_my_photo(
     storage: Storage,
     photo: Annotated[UploadFile, File()],
 ) -> Employee:
-    employee = _own_employee(current_user, db)
+    employee = own_employee(current_user, db)
 
     # One byte past the limit is enough to know it is too big, without reading it all.
     content = photo.file.read(MAX_PHOTO_BYTES + 1)
