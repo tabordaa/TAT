@@ -19,7 +19,7 @@ test('ADMIN resets a password: the old one stops working and a change is require
   await expect(page.getByText(`¿Restablecer la contraseña de ${fullName(person)}?`)).toBeVisible()
   await page.getByRole('button', { name: 'Sí, restablecer' }).click()
 
-  await expect(page.getByRole('status')).toContainText('Contraseña restablecida.')
+  await expect(page.getByRole('status').filter({ hasText: 'Contraseña restablecida.' })).toBeVisible()
   const temporaryPassword = await readTemporaryPassword(page)
 
   expect(await loginStatus(person.email, password)).toBe(401)

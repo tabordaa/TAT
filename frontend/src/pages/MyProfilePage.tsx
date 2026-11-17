@@ -8,6 +8,7 @@ import {
   PersonalDataSection,
 } from '../components/EmployeeRecord'
 import { IconAlert, IconUser } from '../components/Icons'
+import { VacationBalanceCard } from '../components/VacationBalanceCard'
 import type { Employee } from '../types/employee'
 
 type Load =
@@ -82,6 +83,7 @@ export function MyProfilePage() {
             photoUrl={`${MY_PHOTO_URL}?v=${photoVersion}`}
           />
           <div className="detail-sections">
+            <VacationBalanceCard employeeId={null} />
             <PersonalDataSection employee={load.employee} />
             <EmploymentDataSection employee={load.employee} />
             <ContactForm

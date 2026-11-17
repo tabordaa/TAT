@@ -13,6 +13,7 @@ import {
 import { IconAlert, IconUsers } from '../components/Icons'
 import { ResetPasswordCard } from '../components/ResetPasswordCard'
 import { SalaryHistorySection } from '../components/SalaryHistorySection'
+import { VacationBalanceCard } from '../components/VacationBalanceCard'
 import type { EmployeeDetail } from '../types/employee'
 
 type Load =
@@ -116,6 +117,7 @@ export function EmployeeDetailPage() {
                 onSaved={() => setReloadCount((count) => count + 1)}
               />
             )}
+            <VacationBalanceCard employeeId={employee.id} version={employee.status} />
             <SalaryHistorySection employeeId={employee.id} salary={employee.salary} />
             <ContractSection
               employee={employee}
