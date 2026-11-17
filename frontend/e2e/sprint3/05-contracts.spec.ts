@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { storageStateFor } from '../accounts'
-import { createEmployee } from '../api'
+import { createEmployee, terminateContract } from '../api'
 import { businessDate, fullName } from '../data'
 
 // Manual step 5. HU-3.1 (#22) contract assignment, HU-3.2 (#23) expiring contracts.
@@ -40,4 +40,10 @@ test('HR assigns a fixed-term contract and it shows up as expiring', async ({ pa
   const row = alerts.getByRole('row').filter({ hasText: fullName(person) })
   await expect(row).toContainText('10 días')
   await expect(row).toContainText('Por vencer')
+
+  // CA03: only ACTIVE employees. After the departure the row disappears.
+  await terminateContract(id)
+  await page.reload()
+  await expect(alerts).toBeVisible()
+  await expect(alerts.getByRole('row').filter({ hasText: fullName(person) })).toHaveCount(0)
 })

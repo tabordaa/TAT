@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.api import contracts
 from app.core.clock import today
 from app.models.audit_log import AuditAction, AuditLog
 from app.models.employee import EmploymentContract
@@ -387,6 +388,84 @@ def test_you_cannot_terminate_your_own_contract(
     db.commit()
 
     assert _terminate(client, created["id"]).status_code == 409
+
+
+# --- S12: administrators -------------------------------------------------------
+
+
+def _employee_with_admin_account(client: TestClient, payload: dict[str, Any]) -> dict[str, Any]:
+    """Created by the ADMIN the client is logged in as."""
+    response = client.post("/employees", json=payload)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_hr_cannot_terminate_an_administrator(
+    client: TestClient,
+    admin: User,
+    db: Session,
+    password_hash: str,
+    make_employee_payload: PayloadFactory,
+) -> None:
+    _login(client, admin)
+    target = _employee_with_admin_account(
+        client, make_employee_payload(account_role="ADMIN", start_date=START)
+    )
+    _login(client, make_user(db, password_hash, UserRole.HR))
+
+    response = _terminate(client, target["id"])
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["field"] == "account_role"
+    assert client.get(f"/employees/{target['id']}").json()["status"] == "ACTIVO"
+
+
+def test_an_administrator_can_terminate_another_one(
+    client: TestClient, admin: User, make_employee_payload: PayloadFactory
+) -> None:
+    _login(client, admin)
+    target = _employee_with_admin_account(
+        client, make_employee_payload(account_role="ADMIN", start_date=START)
+    )
+
+    response = _terminate(client, target["id"])
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "INACTIVO"
+
+
+def test_the_last_active_administrator_cannot_be_terminated(
+    client: TestClient,
+    admin: User,
+    make_employee_payload: PayloadFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The shared database always holds other admins, and tests never touch rows
+    # they did not create: the count is replaced to reproduce "no one else left",
+    # the state the second of two simultaneous terminations would see.
+    _login(client, admin)
+    target = _employee_with_admin_account(
+        client, make_employee_payload(account_role="ADMIN", start_date=START)
+    )
+    monkeypatch.setattr(contracts, "_other_active_admins", lambda db, account_id: 0)
+
+    response = _terminate(client, target["id"])
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["field"] == "last_admin"
+    assert client.get(f"/employees/{target['id']}").json()["status"] == "ACTIVO"
+
+
+def test_other_active_admins_counts_only_active_admins_besides_the_target(
+    db: Session, password_hash: str
+) -> None:
+    target = make_user(db, password_hash, UserRole.ADMIN)
+    before = contracts._other_active_admins(db, target.id)
+    make_user(db, password_hash, UserRole.ADMIN)
+    make_user(db, password_hash, UserRole.HR)
+    make_user(db, password_hash, UserRole.ADMIN, is_active=False)
+
+    assert contracts._other_active_admins(db, target.id) == before + 1
 
 
 def test_termination_is_audited(

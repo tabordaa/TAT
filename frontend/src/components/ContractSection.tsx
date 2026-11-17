@@ -46,6 +46,10 @@ function toMessage(error: unknown, fallback: string): string {
           return 'Este empleado ya está inactivo.'
         case 'account':
           return 'No puedes finalizar tu propio contrato.'
+        case 'account_role':
+          return 'Solo un administrador puede finalizar el contrato de otro administrador.'
+        case 'last_admin':
+          return 'Es el último administrador activo: asigna otro antes de finalizar su contrato.'
       }
     }
     if (error.response?.status === 403) return 'No tienes permiso para realizar esta acción.'

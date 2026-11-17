@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { storageStateFor } from '../accounts'
-import { createEmployeeWithAccount, loginStatus, signIn } from '../api'
+import {
+  createEmployee,
+  createEmployeeWithAccount,
+  loginStatus,
+  signIn,
+  terminateContract,
+} from '../api'
 import { businessDate, fullName } from '../data'
 import { recordTitle, submitLogin } from '../forms'
 
@@ -25,9 +31,15 @@ test('HR terminates a contract: the person can no longer sign in and their open 
   const dialog = page.getByRole('dialog', { name: `Finalizar contrato de ${fullName(person)}` })
   await expect(dialog).toBeVisible()
 
-  // Step 1: the date, which cannot be missing or in the future.
+  // HU-1.5 CA01: only an ADMIN sees the reset, not HR.
+  await expect(page.getByRole('button', { name: 'Restablecer contraseña' })).toHaveCount(0)
+
+  // Step 1: the date, which cannot be missing, before the contract start, or in the future.
   await dialog.getByRole('button', { name: 'Continuar' }).click()
   await expect(dialog.getByRole('alert')).toContainText('Selecciona la fecha de salida.')
+  await dialog.getByLabel('Fecha de salida').fill(businessDate(-500)) // the contract began 400 days ago
+  await dialog.getByRole('button', { name: 'Continuar' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('no puede ser anterior al inicio del contrato')
   await dialog.getByLabel('Fecha de salida').fill(businessDate(1))
   await dialog.getByRole('button', { name: 'Continuar' }).click()
   await expect(dialog.getByRole('alert')).toContainText('no puede ser futura')
@@ -51,4 +63,27 @@ test('HR terminates a contract: the person can no longer sign in and their open 
   await employeeContext.close()
 
   expect(await loginStatus(person.email, password)).toBe(401)
+})
+
+// S12 (#156): HR never terminates an administrator; only another ADMIN can.
+test('HR cannot terminate an administrator', async ({ page }) => {
+  const { id, person } = await createEmployee({ accountRole: 'ADMIN' })
+  try {
+    await page.goto(`/empleados/${id}`)
+    await page.getByRole('button', { name: 'Finalizar contrato' }).click()
+    const dialog = page.getByRole('dialog', { name: `Finalizar contrato de ${fullName(person)}` })
+    await dialog.getByLabel('Fecha de salida').fill(businessDate())
+    await dialog.getByRole('button', { name: 'Continuar' }).click()
+    await dialog.getByRole('button', { name: 'Sí, finalizar contrato' }).click()
+
+    await expect(dialog.getByRole('alert')).toContainText(
+      'Solo un administrador puede finalizar el contrato de otro administrador.',
+    )
+    await dialog.getByRole('button', { name: 'Cancelar' }).click()
+    await page.reload()
+    await expect(recordTitle(page)).toContainText('Activo')
+  } finally {
+    // An ADMIN account with a temporary password must not stay open in the database.
+    await terminateContract(id)
+  }
 })
