@@ -27,7 +27,7 @@ test.describe('my profile', () => {
     await page.getByLabel('Teléfono').fill('+57 310 555 2847')
     await page.getByLabel('Dirección').fill('Calle 49 # 50-21, Medellín')
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
-    await expect(page.getByRole('status')).toContainText('Tus datos de contacto se actualizaron.')
+    await expect(page.getByRole('status').filter({ hasText: 'Tus datos de contacto se actualizaron.' })).toBeVisible()
 
     await page.reload()
     await expect(page.getByLabel('Teléfono')).toHaveValue('+57 310 555 2847')
@@ -71,7 +71,7 @@ test.describe('my profile', () => {
       mimeType: 'image/png',
       buffer: PNG_1X1,
     })
-    await expect(page.getByRole('status')).toContainText('Tu foto se actualizó.')
+    await expect(page.getByRole('status').filter({ hasText: 'Tu foto se actualizó.' })).toBeVisible()
 
     const photo = await page.request.get('/api/me/employee/photo')
     expect(photo.status()).toBe(200)

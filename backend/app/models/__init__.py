@@ -10,6 +10,7 @@ from app.models.employee import (
 )
 from app.models.salary_change import SalaryChange
 from app.models.user import User, UserRole
+from app.models.vacation import VacationRequest, VacationStatus
 
 __all__ = [
     "AuditAction",
@@ -22,4 +23,6 @@ __all__ = [
     "SalaryChange",
     "User",
     "UserRole",
+    "VacationRequest",
+    "VacationStatus",
 ]

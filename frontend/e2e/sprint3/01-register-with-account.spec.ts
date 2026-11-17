@@ -25,7 +25,7 @@ test('ADMIN registers an employee with an account, and the audit log records it'
   await page.getByLabel('Rol de la cuenta').selectOption('EMPLOYEE')
   await page.getByRole('button', { name: 'Guardar empleado' }).click()
 
-  await expect(page.getByRole('status')).toContainText('Empleado registrado y cuenta de acceso creada.')
+  await expect(page.getByRole('status').filter({ hasText: 'Empleado registrado y cuenta de acceso creada.' })).toBeVisible()
   await expect(page.getByText(`${fullName(person)} ya puede ingresar`)).toBeVisible()
   const temporaryPassword = await readTemporaryPassword(page)
 

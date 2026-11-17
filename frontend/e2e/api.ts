@@ -82,8 +82,9 @@ export async function activateAccount(email: string, temporaryPassword: string):
 /** An employee with an active account and a password of their own (no forced change). */
 export async function createEmployeeWithAccount(
   role: UserRole = 'EMPLOYEE',
+  options: Omit<NewEmployeeOptions, 'accountRole'> = {},
 ): Promise<CreatedEmployee & { password: string }> {
-  const created = await createEmployee({ accountRole: role })
+  const created = await createEmployee({ ...options, accountRole: role })
   if (created.temporaryPassword === null) throw new Error('the API returned no account')
   const password = await activateAccount(created.person.email, created.temporaryPassword)
   return { ...created, password }
