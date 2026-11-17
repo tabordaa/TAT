@@ -30,7 +30,7 @@ test('HR assigns a fixed-term contract and it shows up as expiring', async ({ pa
   await page.getByRole('button', { name: 'Asignar contrato', exact: true }).click()
 
   // The new contract is the one in force; the previous one stays in the history.
-  const history = page.getByRole('table')
+  const history = page.getByRole('table', { name: 'Historial de contratos' })
   await expect(history.getByRole('row').filter({ hasText: 'Término fijo' })).toContainText('Vigente')
   await expect(history.getByRole('row').filter({ hasText: 'Término indefinido' })).toContainText('Terminó el')
 

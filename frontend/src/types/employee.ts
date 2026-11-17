@@ -119,6 +119,15 @@ export interface EmploymentUpdatePayload {
   salary?: string
 }
 
+/** One row of GET /employees/{id}/salary-history (HU-2.5), newest first. */
+export interface SalaryChange {
+  id: string
+  old_salary: string
+  new_salary: string
+  changed_at: string
+  changed_by_name: string
+}
+
 /** Body of PATCH /me/employee (HU-2.7). */
 export interface ContactPayload {
   phone: string | null

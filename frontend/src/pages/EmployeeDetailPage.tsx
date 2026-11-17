@@ -12,6 +12,7 @@ import {
 } from '../components/EmployeeRecord'
 import { IconAlert, IconUsers } from '../components/Icons'
 import { ResetPasswordCard } from '../components/ResetPasswordCard'
+import { SalaryHistorySection } from '../components/SalaryHistorySection'
 import type { EmployeeDetail } from '../types/employee'
 
 type Load =
@@ -115,6 +116,7 @@ export function EmployeeDetailPage() {
                 onSaved={() => setReloadCount((count) => count + 1)}
               />
             )}
+            <SalaryHistorySection employeeId={employee.id} salary={employee.salary} />
             <ContractSection
               employee={employee}
               canWrite={canWrite}

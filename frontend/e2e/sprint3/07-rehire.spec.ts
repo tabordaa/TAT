@@ -22,7 +22,7 @@ test('a rehire reactivates the employee but not the account, until an ADMIN rese
 
   await expect(recordTitle(page)).toContainText('Activo')
   await expect(page.getByRole('button', { name: 'Finalizar contrato' })).toBeVisible()
-  const history = page.getByRole('table')
+  const history = page.getByRole('table', { name: 'Historial de contratos' })
   await expect(history.getByRole('row')).toHaveCount(3) // header + old contract + new one
   await expect(history.getByRole('row').filter({ hasText: 'Vigente' })).toHaveCount(1)
 

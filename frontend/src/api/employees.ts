@@ -10,6 +10,7 @@ import type {
   EmployeeOverview,
   EmployeeStats,
   EmploymentUpdatePayload,
+  SalaryChange,
 } from '../types/employee'
 
 /** GET /employees/{id}. Rejects with an axios 404 error when the employee does not exist. */
@@ -34,6 +35,18 @@ export async function updateEmployment(
   const { data } = await api.patch<Employee>(
     `/employees/${encodeURIComponent(employeeId)}/employment`,
     payload,
+  )
+  return data
+}
+
+/** GET /employees/{id}/salary-history: every salary change, newest first. */
+export async function getSalaryHistory(
+  employeeId: string,
+  signal?: AbortSignal,
+): Promise<SalaryChange[]> {
+  const { data } = await api.get<SalaryChange[]>(
+    `/employees/${encodeURIComponent(employeeId)}/salary-history`,
+    { signal },
   )
   return data
 }
