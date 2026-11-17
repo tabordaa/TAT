@@ -816,6 +816,13 @@ a {
   margin: 0.5rem 0 0;
   padding-left: 1.2rem;
 }
+/* HU-5.2: "Exportar" next to "Registrar empleado" in the page header. */
+.page-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
 /* HU-4.2: approve and reject side by side in a table row. */
 .row-actions {
   display: flex;

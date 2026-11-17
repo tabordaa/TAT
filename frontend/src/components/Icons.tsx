@@ -30,6 +30,13 @@ export const IconLogout = (p: IconProps) => (
     <path d="M21 12H9" />
   </Svg>
 )
+export const IconDownload = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3v12" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M5 21h14" />
+  </Svg>
+)
 export const IconCalendar = (p: IconProps) => (
   <Svg {...p}>
     <rect x="3" y="4" width="18" height="18" rx="2" />

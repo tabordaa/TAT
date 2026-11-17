@@ -74,6 +74,23 @@ export async function listEmployees(
   return data
 }
 
+/** GET /employees/export.csv (HU-5.2): the same filters as the list, as a file. */
+export async function exportEmployees(
+  query: Pick<EmployeeListQuery, 'q' | 'status'>,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get<Blob>('/employees/export.csv', {
+    params: {
+      ...(query.q !== '' && { q: query.q }),
+      ...(query.status !== '' && { status: query.status }),
+    },
+    responseType: 'blob',
+  })
+  // The server names the file (it knows today's business date).
+  const disposition = String(response.headers['content-disposition'] ?? '')
+  const match = /filename="([^"]+)"/.exec(disposition)
+  return { blob: response.data, filename: match?.[1] ?? 'empleados.csv' }
+}
+
 /** GET /employees/stats: headline numbers for the dashboard. */
 export async function getEmployeeStats(signal?: AbortSignal): Promise<EmployeeStats> {
   const { data } = await api.get<EmployeeStats>('/employees/stats', { signal })

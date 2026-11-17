@@ -20,6 +20,7 @@ const ACTION_LABELS: Record<string, string> = {
   VACATION_REQUESTED: 'Vacaciones solicitadas',
   VACATION_APPROVED: 'Vacaciones aprobadas',
   VACATION_REJECTED: 'Vacaciones rechazadas',
+  EMPLOYEES_EXPORTED: 'Empleados exportados',
 }
 
 const FIELD_LABELS: Record<string, string> = {
