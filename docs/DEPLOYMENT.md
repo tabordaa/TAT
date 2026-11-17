@@ -65,7 +65,7 @@ A wrong value is not a crash, but all users could share one IP and one login lim
 Settings > Rules > Rulesets > New branch ruleset, targeting the default branch:
 
 - Require a pull request, with 0 required approvals.
-- Require status checks: `backend` and `frontend`.
+- Require status checks: `backend`, `frontend` and `e2e`.
 - Allow only squash merges.
 - Block force pushes and restrict deletions.
 
