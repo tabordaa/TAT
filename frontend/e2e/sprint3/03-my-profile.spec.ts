@@ -34,7 +34,7 @@ test.describe('my profile', () => {
     await expect(page.getByLabel('Dirección')).toHaveValue('Calle 49 # 50-21, Medellín')
   })
 
-  test('a file that is not an image is rejected, in the browser and by the API', async ({ page }) => {
+  test('the browser refuses a file that is not an image', async ({ page }) => {
     const { person, password } = await createEmployeeWithAccount('EMPLOYEE')
     await signIn(page, person.email, password)
     await page.goto('/mi-perfil')
@@ -45,21 +45,26 @@ test.describe('my profile', () => {
       buffer: Buffer.from('%PDF-1.7 not an image'),
     })
     await expect(page.getByRole('alert')).toContainText('La foto debe ser una imagen JPG, PNG o WEBP.')
-
-    // The browser check is only UX: the server decides by the bytes, not the declared type.
-    const response = await page.request.put('/api/me/employee/photo', {
-      multipart: {
-        photo: { name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from('%PDF-1.7 not an image') },
-      },
-    })
-    expect(response.status()).toBe(415)
   })
 
-  test('uploads a profile photo to the real bucket', async ({ page }) => {
+  // Without Storage (CI) every photo route answers 503 before reading the file,
+  // so the server-side checks run only against the real bucket. pytest covers
+  // them everywhere with a fake storage (tests/test_me_contact_photo.py).
+  test('uploads a photo to the real bucket, and the API judges files by their bytes', async ({
+    page,
+  }) => {
     test.skip(process.env.E2E_STORAGE !== '1', 'needs Supabase Storage: run with E2E_STORAGE=1')
     const { person, password } = await createEmployeeWithAccount('EMPLOYEE')
     await signIn(page, person.email, password)
     await page.goto('/mi-perfil')
+
+    // The browser check is only UX: a PDF renamed to .png still gets a 415.
+    const disguised = await page.request.put('/api/me/employee/photo', {
+      multipart: {
+        photo: { name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from('%PDF-1.7 not an image') },
+      },
+    })
+    expect(disguised.status()).toBe(415)
 
     await page.getByLabel('Foto de perfil').setInputFiles({
       name: 'foto.png',
