@@ -32,6 +32,9 @@ def main() -> int:
         print("delete: OK")
     except StorageError as exc:
         print(f"FAILED: {exc}")
+        if exc.detail:
+            # Console only: the reason Supabase gave, never credentials.
+            print(f"Supabase says: {exc.detail}")
         if uploaded:
             print(f"Remove this object from the bucket by hand: {path}")
         return 1

@@ -412,9 +412,37 @@ def test_real_client_calls_the_expected_url_with_the_key(
     client.upload("a/b.png", PNG, "image/png")
 
     assert calls[0]["url"] == "https://x.supabase.co/storage/v1/object/photos/a/b.png"
+    assert calls[0]["headers"]["apikey"] == SECRET_KEY
     assert calls[0]["headers"]["Authorization"] == f"Bearer {SECRET_KEY}"
     assert calls[0]["headers"]["Content-Type"] == "image/png"
     assert client.download("a/b.png") == b"ok"
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        (b'{"statusCode":"404","error":"not_found","message":"Bucket not found"}', "Bucket not found"),
+        (b"<html>gateway error</html>", None),
+        (b'["not", "an", "object"]', None),
+    ],
+)
+def test_real_client_keeps_the_supabase_reason_out_of_the_message(
+    monkeypatch: pytest.MonkeyPatch,
+    body: bytes,
+    expected: str | None,
+) -> None:
+    def fake_request(method: str, url: str, **kwargs: Any) -> httpx.Response:
+        return httpx.Response(400, content=body, request=httpx.Request(method, url))
+
+    monkeypatch.setattr(httpx, "request", fake_request)
+    client = SupabasePhotoStorage("https://x.supabase.co", SECRET_KEY, "photos")
+
+    with pytest.raises(StorageError) as caught:
+        client.upload("a/b.png", PNG, "image/png")
+
+    assert caught.value.detail == expected
+    assert "Bucket not found" not in str(caught.value)
+    assert str(caught.value) == "Storage POST failed: HTTPStatusError (400)"
 
 
 @pytest.mark.parametrize("failure", ["status", "network"])
@@ -437,6 +465,7 @@ def test_real_client_errors_never_carry_the_key_or_the_url(
     assert SECRET_KEY not in str(caught.value)
     assert "supabase.co" not in str(caught.value)
     assert caught.value.__cause__ is None
+    assert caught.value.detail is None
     assert SECRET_KEY not in caplog.text
 
 
