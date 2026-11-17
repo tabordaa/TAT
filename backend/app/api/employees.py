@@ -5,12 +5,13 @@ from datetime import date, datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.api.deps import Admin, DbSession, EmployeeReader, HrStaff
 from app.api.me import Storage, photo_response
+from app.core.clock import today
 from app.core.security import generate_temporary_password, hash_password
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus, EmploymentContract
@@ -32,8 +33,11 @@ from app.schemas.employee import (
     SalaryChangeResponse,
 )
 from app.services.audit import record_audit
+from app.services.employee_export import employees_csv
 
 router = APIRouter(prefix="/employees", tags=["employees"])
+
+EXPORT_LIMIT = 5000  # rows per CSV; far above this company's size, a guard against abuse
 
 DUPLICATE_DOCUMENT = "An active employee with this document already exists"
 DUPLICATE_EMAIL = "An active employee with this email already exists"
@@ -199,23 +203,22 @@ def _like_pattern(term: str) -> str:
     return f"%{escaped}%"
 
 
-@router.get("", response_model=EmployeeListResponse)
-def list_employees(
-    db: DbSession,
-    current_user: EmployeeReader,  # session required (401) and role check (403)
-    q: Annotated[
-        str | None,
-        Query(max_length=100, description="Words to find in names or document number"),
-    ] = None,
-    employee_status: Annotated[
-        EmployeeStatus | None,
-        Query(alias="status", description="Filter by ACTIVO or INACTIVO; omit for all"),
-    ] = None,
-    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 20,
-) -> EmployeeListResponse:
-    conditions = []
+SearchQuery = Annotated[
+    str | None,
+    Query(max_length=100, description="Words to find in names or document number"),
+]
+StatusQuery = Annotated[
+    EmployeeStatus | None,
+    Query(alias="status", description="Filter by ACTIVO or INACTIVO; omit for all"),
+]
 
+
+def _employee_filters(
+    q: str | None, employee_status: EmployeeStatus | None
+) -> list[ColumnElement[bool]]:
+    """The directory's filters. Shared by the list and the CSV export, so the
+    file always holds exactly what the screen shows (HU-5.2 CA02)."""
+    conditions: list[ColumnElement[bool]] = []
     # Every word must match the first names, last names or document number
     # ("ana perez" finds Ana Maria PEREZ), case-insensitively.
     for term in (q or "").split():
@@ -229,6 +232,19 @@ def list_employees(
         )
     if employee_status is not None:
         conditions.append(Employee.status == employee_status)
+    return conditions
+
+
+@router.get("", response_model=EmployeeListResponse)
+def list_employees(
+    db: DbSession,
+    current_user: EmployeeReader,  # session required (401) and role check (403)
+    q: SearchQuery = None,
+    employee_status: StatusQuery = None,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> EmployeeListResponse:
+    conditions = _employee_filters(q, employee_status)
 
     total = (
         db.scalar(select(func.count()).select_from(Employee).where(*conditions)) or 0
@@ -341,6 +357,68 @@ def get_employee_overview(
         ),
         recent_hires=[_summary(e, e.start_date) for e in hires],
         recent_departures=[_summary(e, e.end_date) for e in departures],
+    )
+
+
+# NOTE: declared BEFORE "/{employee_id}", like /stats and /overview.
+@router.get("/export.csv", response_class=Response)
+def export_employees(
+    request: Request,
+    db: DbSession,
+    current_user: EmployeeReader,  # the same people who read the directory
+    q: SearchQuery = None,
+    employee_status: StatusQuery = None,
+) -> Response:
+    """HU-5.2: the directory as CSV, with the filters active on screen (CA02).
+
+    The salary column is only for ADMIN and HR, like everywhere else a
+    MANAGER cannot change pay. Every export is audited: a file leaves the
+    system, so who took it and with which filters must be on record.
+    """
+    conditions = _employee_filters(q, employee_status)
+    total = db.scalar(select(func.count()).select_from(Employee).where(*conditions)) or 0
+    if total > EXPORT_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "field": "q",
+                "message": f"More than {EXPORT_LIMIT} employees match; narrow the filters",
+            },
+        )
+    rows = db.scalars(
+        select(Employee)
+        .where(*conditions)
+        .order_by(Employee.last_names, Employee.first_names, Employee.id)
+    ).all()
+
+    with_salary = current_user.role in (UserRole.ADMIN, UserRole.HR)
+    content = employees_csv(rows, with_salary)
+
+    record_audit(
+        db,
+        actor=current_user,
+        request=request,
+        action=AuditAction.EMPLOYEES_EXPORTED,
+        entity_type="employee_export",
+        entity_id=uuid.uuid4(),  # an export is not a row; it gets its own id
+        changes={
+            "q": (None, (q or "").strip() or None),
+            "status": (None, employee_status),
+            "rows": (None, len(rows)),
+            "with_salary": (None, with_salary),
+        },
+    )
+    db.commit()
+
+    filename = f"empleados-{today().isoformat()}.csv"
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            # Personal data: no browser or proxy should keep a copy.
+            "Cache-Control": "no-store",
+        },
     )
 
 
