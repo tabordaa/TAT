@@ -14,6 +14,7 @@ from app.api.me import Storage, photo_response
 from app.core.security import generate_temporary_password, hash_password
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus, EmploymentContract
+from app.models.salary_change import SalaryChange
 from app.models.user import User, UserRole
 from app.schemas.employee import (
     AccountCreated,
@@ -26,6 +27,7 @@ from app.schemas.employee import (
     EmployeeOverview,
     EmployeeResponse,
     EmployeeStats,
+    EmploymentUpdate,
     PersonSummary,
 )
 from app.services.audit import record_audit
@@ -348,6 +350,69 @@ def get_employee_or_404(db: Session, employee_id: uuid.UUID) -> Employee:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Employee not found",
         )
+    return employee
+
+
+def lock_employee_or_404(db: Session, employee_id: uuid.UUID) -> Employee:
+    """Load the row FOR UPDATE: two HR users cannot change the same record at once."""
+    employee = db.scalar(
+        select(Employee).where(Employee.id == employee_id).with_for_update()
+    )
+    if employee is None:
+        return get_employee_or_404(db, employee_id)  # answers the 404
+    return employee
+
+
+@router.patch("/{employee_id}/employment", response_model=EmployeeResponse)
+def update_employment(
+    employee_id: uuid.UUID,
+    data: EmploymentUpdate,
+    request: Request,
+    db: DbSession,
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+) -> Employee:
+    """HU-2.4: promotion, transfer or raise.
+
+    Decision 1 of the Sprint 4 planning: HR edits these fields too, not only
+    the ADMIN the acceptance criterion names. Only an ACTIVO employee: for a
+    rehire the new conditions come with the new contract.
+    """
+    employee = lock_employee_or_404(db, employee_id)
+    if employee.status is not EmployeeStatus.ACTIVO:
+        raise conflict("status", "Only an active employee's job data can change")
+
+    changes: dict[str, tuple[object, object]] = {}
+    for field in ("position", "area"):
+        new = getattr(data, field)
+        if new is not None and new != getattr(employee, field):
+            changes[field] = (getattr(employee, field), new)
+            setattr(employee, field, new)
+
+    if data.salary is not None and data.salary != employee.salary:
+        changes["salary"] = (employee.salary, data.salary)
+        # HU-2.4 CA02: the history row is written in the same transaction as the
+        # change and its audit record; all three are saved or none is.
+        db.add(
+            SalaryChange(
+                employee_id=employee.id,
+                old_salary=employee.salary,
+                new_salary=data.salary,
+                changed_by_id=current_user.id,
+            )
+        )
+        employee.salary = data.salary
+
+    if changes:  # sending the current values again changes nothing and logs nothing
+        record_audit(
+            db,
+            actor=current_user,
+            request=request,
+            action=AuditAction.EMPLOYMENT_UPDATED,
+            entity_type="employee",
+            entity_id=employee.id,
+            changes=changes,
+        )
+    db.commit()
     return employee
 
 

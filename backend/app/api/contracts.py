@@ -16,6 +16,7 @@ from app.api.employees import (
     UNIQUE_VIOLATIONS,
     conflict,
     get_employee_or_404,
+    lock_employee_or_404,
 )
 from app.core.clock import today
 from app.models.audit_log import AuditAction
@@ -67,16 +68,6 @@ def _ensure_admin_can_leave(db: Session, account: User, actor: User) -> None:
         )
     if account.is_active and _other_active_admins(db, account.id) == 0:
         raise conflict("last_admin", "The last active administrator cannot be terminated")
-
-
-def _lock_employee(db: Session, employee_id: uuid.UUID) -> Employee:
-    """Load the row FOR UPDATE: two HR users cannot change a contract at once."""
-    employee = db.scalar(
-        select(Employee).where(Employee.id == employee_id).with_for_update()
-    )
-    if employee is None:
-        return get_employee_or_404(db, employee_id)  # answers the 404
-    return employee
 
 
 def _reject_duplicates_of_a_rehire(db: Session, employee: Employee) -> None:
@@ -185,7 +176,7 @@ def assign_contract(
     The rehire does NOT reopen the login account: giving access back is a
     separate decision for an administrator (the password reset of HU-1.5).
     """
-    employee = _lock_employee(db, employee_id)
+    employee = lock_employee_or_404(db, employee_id)
     is_rehire = employee.status is EmployeeStatus.INACTIVO
     if is_rehire:
         _reject_duplicates_of_a_rehire(db, employee)
@@ -255,7 +246,7 @@ def terminate_contract(
     current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
 ) -> Employee:
     """HU-3.3: the employee leaves. The record stays; access ends right now."""
-    employee = _lock_employee(db, employee_id)
+    employee = lock_employee_or_404(db, employee_id)
     if employee.status is EmployeeStatus.INACTIVO:
         raise conflict("status", "This employee is already inactive")
 

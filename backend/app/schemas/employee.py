@@ -78,6 +78,26 @@ class ContractAssign(BaseModel):
         return self
 
 
+class EmploymentUpdate(BaseModel):
+    """HU-2.4: position, area and salary. Whatever is left out stays as it is.
+
+    Same limits as the registration. extra="forbid" answers 422 to anything
+    else (status, contract, personal data): those have their own flows.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    position: str | None = Field(default=None, min_length=1, max_length=120)
+    area: str | None = Field(default=None, min_length=1, max_length=120)
+    salary: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+
+    @model_validator(mode="after")
+    def _at_least_one(self) -> Self:
+        if self.position is None and self.area is None and self.salary is None:
+            raise ValueError("send at least one of position, area or salary")
+        return self
+
+
 class ContractTerminate(BaseModel):
     """HU-3.3: the employee's departure date."""
 
