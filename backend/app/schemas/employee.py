@@ -16,6 +16,8 @@ from app.models.employee import (
 )
 from app.models.user import UserRole
 
+CENTS = Decimal("0.01")
+
 
 def _check_contract_dates(
     contract_type: ContractType, start_date: date, end_date: date | None
@@ -95,6 +97,10 @@ class EmploymentUpdate(BaseModel):
     def _at_least_one(self) -> Self:
         if self.position is None and self.area is None and self.salary is None:
             raise ValueError("send at least one of position, area or salary")
+        if self.salary is not None:
+            # "4750000" and "4750000.00" are the same amount: store and audit it
+            # always with cents, like the NUMERIC(12, 2) column returns it.
+            self.salary = self.salary.quantize(CENTS)
         return self
 
 

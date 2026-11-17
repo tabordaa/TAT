@@ -4,6 +4,7 @@ import axios from 'axios'
 import { getEmployee } from '../api/employees'
 import { useAuth } from '../auth/useAuth'
 import { ContractSection } from '../components/ContractSection'
+import { EmploymentForm } from '../components/EmploymentForm'
 import {
   EmployeeRecordHeader,
   EmploymentDataSection,
@@ -47,6 +48,8 @@ export function EmployeeDetailPage() {
   }, [employeeId, reloadCount])
 
   const employee = load.phase === 'ready' ? load.employee : null
+  // UX only: the API answers 403 to anyone else (HrStaff).
+  const canWrite = user?.role === 'ADMIN' || user?.role === 'HR'
 
   return (
     <section>
@@ -104,9 +107,17 @@ export function EmployeeDetailPage() {
           <div className="detail-sections">
             <PersonalDataSection employee={employee} />
             <EmploymentDataSection employee={employee} />
+            {canWrite && employee.status === 'ACTIVO' && (
+              <EmploymentForm
+                // A new key after each save starts the form from the saved values.
+                key={`${employee.position}|${employee.area}|${employee.salary}`}
+                employee={employee}
+                onSaved={() => setReloadCount((count) => count + 1)}
+              />
+            )}
             <ContractSection
               employee={employee}
-              canWrite={user?.role === 'ADMIN' || user?.role === 'HR'}
+              canWrite={canWrite}
               onChanged={() => setReloadCount((count) => count + 1)}
             />
 

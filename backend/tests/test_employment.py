@@ -117,6 +117,15 @@ def test_a_salary_change_writes_one_history_row(
     assert rows[0].changed_at is not None
 
 
+def test_a_salary_without_cents_is_audited_with_cents(
+    auth_client: TestClient, employee: dict[str, Any], db: Session
+) -> None:
+    _update(auth_client, employee["id"], {"salary": "3800000"})
+
+    change = _audit_rows(db, employee["id"])[0].changes["salary"]
+    assert change == {"old": "3500000.00", "new": "3800000.00"}
+
+
 def test_each_raise_adds_a_row(auth_client: TestClient, employee: dict[str, Any], db: Session) -> None:
     _update(auth_client, employee["id"], {"salary": "3800000"})
     _update(auth_client, employee["id"], {"salary": "4100000"})
