@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { getMyVacationBalance, getVacationBalance } from '../api/vacations'
 import type { VacationBalance } from '../types/vacation'
@@ -19,12 +19,20 @@ interface VacationBalanceCardProps {
   employeeId: string | null
   /** Changes when the balance may have changed (a new request, a decision). */
   version?: string | number
+  /** Hands the loaded balance to the page (Mis vacaciones checks the form against it). */
+  onLoaded?: (balance: VacationBalance) => void
 }
 
 // HU-4.3 CA03: the available days, always visible in the profile. The numbers
 // come from the API, which calculates them on every read.
-export function VacationBalanceCard({ employeeId, version = 0 }: VacationBalanceCardProps) {
+export function VacationBalanceCard({ employeeId, version = 0, onLoaded }: VacationBalanceCardProps) {
   const [state, setState] = useState<Load>({ phase: 'loading' })
+  // The latest callback without making it an effect dependency (the parent
+  // recreates it on every render, which would refetch in a loop).
+  const onLoadedRef = useRef(onLoaded)
+  useEffect(() => {
+    onLoadedRef.current = onLoaded
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -34,7 +42,10 @@ export function VacationBalanceCard({ employeeId, version = 0 }: VacationBalance
         ? getMyVacationBalance(controller.signal)
         : getVacationBalance(employeeId, controller.signal)
     request
-      .then((balance) => setState({ phase: 'ready', balance }))
+      .then((balance) => {
+        setState({ phase: 'ready', balance })
+        onLoadedRef.current?.(balance)
+      })
       .catch((error: unknown) => {
         if (!axios.isCancel(error)) setState({ phase: 'error' })
       })

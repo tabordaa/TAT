@@ -11,6 +11,7 @@ import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
 import { EmployeesPage } from './pages/EmployeesPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyProfilePage } from './pages/MyProfilePage'
+import { MyVacationsPage } from './pages/MyVacationsPage'
 import { RegisterEmployeePage } from './pages/RegisterEmployeePage'
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
             <Route path={CHANGE_PASSWORD_PATH} element={<ChangePasswordPage />} />
             <Route element={<AppLayout />}>
               <Route path="/mi-perfil" element={<MyProfilePage />} />
+              <Route path="/mis-vacaciones" element={<MyVacationsPage />} />
               <Route element={<RoleRoute allowed={['ADMIN', 'HR', 'MANAGER']} />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/empleados" element={<EmployeesPage />} />
