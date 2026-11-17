@@ -1,10 +1,13 @@
 """API contracts for vacations (HU-4.1 to 4.4)."""
 
-from datetime import date
+import uuid
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.models.vacation import VacationStatus
 from app.services.vacations import DAYS_PER_YEAR, VacationBalance
 
 
@@ -30,3 +33,32 @@ class VacationBalanceResponse(BaseModel):
             available_days=balance.available,
             requestable_days=balance.requestable,
         )
+
+
+class VacationRequestCreate(BaseModel):
+    """HU-4.1: only the dates. Business days, status and who asked are decided
+    by the server, so the client cannot send them (extra="forbid")."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: date
+    end_date: date
+
+    @model_validator(mode="after")
+    def end_not_before_start(self) -> Self:
+        if self.end_date < self.start_date:
+            raise ValueError("end_date cannot be before start_date")
+        return self
+
+
+class VacationRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    start_date: date
+    end_date: date
+    business_days: int
+    status: VacationStatus
+    reason: str | None
+    created_at: datetime
+    decided_at: datetime | None
