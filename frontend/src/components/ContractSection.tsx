@@ -343,7 +343,7 @@ export function ContractSection({ employee, canWrite, onChanged }: ContractSecti
 
       {contracts !== null && contracts.length > 0 && (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table" aria-label="Historial de contratos">
             <thead>
               <tr>
                 <th scope="col">Tipo</th>

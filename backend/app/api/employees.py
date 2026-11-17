@@ -1,7 +1,7 @@
 """HU-2.1 registration, HU-2.2 directory (list and search), HU-2.3 detail."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
@@ -29,6 +29,7 @@ from app.schemas.employee import (
     EmployeeStats,
     EmploymentUpdate,
     PersonSummary,
+    SalaryChangeResponse,
 )
 from app.services.audit import record_audit
 
@@ -398,6 +399,10 @@ def update_employment(
                 old_salary=employee.salary,
                 new_salary=data.salary,
                 changed_by_id=current_user.id,
+                # The real instant, not the column default: PostgreSQL's now()
+                # is the start of the TRANSACTION, so changes made inside one
+                # (a script, the tests) would all share it and lose their order.
+                changed_at=datetime.now(timezone.utc),
             )
         )
         employee.salary = data.salary
@@ -414,6 +419,37 @@ def update_employment(
         )
     db.commit()
     return employee
+
+
+@router.get("/{employee_id}/salary-history", response_model=list[SalaryChangeResponse])
+def get_salary_history(
+    employee_id: uuid.UUID,
+    db: DbSession,
+    current_user: EmployeeReader,  # session required (401) and role check (403)
+) -> list[SalaryChangeResponse]:
+    """HU-2.5: every salary change, newest first, with who made it.
+
+    Readable by whoever reads the record (ADMIN, HR, MANAGER), which already
+    shows the current salary. An employee never reaches this route.
+    """
+    get_employee_or_404(db, employee_id)
+    rows = db.execute(
+        select(SalaryChange, User.full_name)
+        .join(User, User.id == SalaryChange.changed_by_id)
+        .where(SalaryChange.employee_id == employee_id)
+        # id breaks ties between two changes in the same instant.
+        .order_by(SalaryChange.changed_at.desc(), SalaryChange.id.desc())
+    ).all()
+    return [
+        SalaryChangeResponse(
+            id=change.id,
+            old_salary=change.old_salary,
+            new_salary=change.new_salary,
+            changed_at=change.changed_at,
+            changed_by_name=changed_by,
+        )
+        for change, changed_by in rows
+    ]
 
 
 @router.get("/{employee_id}", response_model=EmployeeDetailResponse)

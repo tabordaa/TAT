@@ -235,6 +235,64 @@ def test_other_roles_cannot_edit(
     ) == 0
 
 
+# --- HU-2.5: GET /employees/{id}/salary-history -------------------------------------
+
+
+def _history(client: TestClient, employee_id: str):
+    return client.get(f"/employees/{employee_id}/salary-history")
+
+
+def test_history_lists_every_change_newest_first(
+    auth_client: TestClient, employee: dict[str, Any], hr_user: User
+) -> None:
+    _update(auth_client, employee["id"], {"salary": "3800000"})
+    _update(auth_client, employee["id"], {"position": "Analista senior"})  # no salary row
+    _update(auth_client, employee["id"], {"salary": "4100000.50"})
+
+    response = _history(auth_client, employee["id"])
+
+    assert response.status_code == 200
+    rows = response.json()
+    assert [(row["old_salary"], row["new_salary"]) for row in rows] == [
+        ("3800000.00", "4100000.50"),
+        ("3500000.00", "3800000.00"),
+    ]
+    assert rows[0]["changed_at"] >= rows[1]["changed_at"]
+    assert {row["changed_by_name"] for row in rows} == {hr_user.full_name}
+    # Only what the history needs: no emails, roles or ids of the account.
+    assert set(rows[0]) == {"id", "old_salary", "new_salary", "changed_at", "changed_by_name"}
+
+
+def test_history_is_empty_before_any_change(
+    auth_client: TestClient, employee: dict[str, Any]
+) -> None:
+    assert _history(auth_client, employee["id"]).json() == []
+
+
+def test_history_of_an_unknown_employee_is_404(auth_client: TestClient) -> None:
+    assert _history(auth_client, str(uuid.uuid4())).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("role", "expected"),
+    [(UserRole.ADMIN, 200), (UserRole.HR, 200), (UserRole.MANAGER, 200), (UserRole.EMPLOYEE, 403)],
+)
+def test_history_is_read_by_those_who_read_records(
+    client: TestClient,
+    db: Session,
+    password_hash: str,
+    employee: dict[str, Any],
+    role: UserRole,
+    expected: int,
+) -> None:
+    _login(client, make_user(db, password_hash, role))
+    assert _history(client, employee["id"]).status_code == expected
+
+
+def test_history_requires_a_session(client: TestClient) -> None:
+    assert _history(client, str(uuid.uuid4())).status_code == 401
+
+
 def test_salary_history_table_has_row_level_security(db: Session) -> None:
     enabled = db.scalar(
         text("SELECT relrowsecurity FROM pg_class WHERE relname = 'salary_changes'")

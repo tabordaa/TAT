@@ -104,6 +104,17 @@ class EmploymentUpdate(BaseModel):
         return self
 
 
+class SalaryChangeResponse(BaseModel):
+    """HU-2.5: one step of an employee's salary history."""
+
+    id: uuid.UUID
+    old_salary: Decimal
+    new_salary: Decimal
+    changed_at: datetime
+    # The name only: the account's email or role are not needed to read history.
+    changed_by_name: str
+
+
 class ContractTerminate(BaseModel):
     """HU-3.3: the employee's departure date."""
 
