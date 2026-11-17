@@ -8,6 +8,7 @@ from app.models.employee import (
     EmployeeStatus,
     EmploymentContract,
 )
+from app.models.salary_change import SalaryChange
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "Employee",
     "EmployeeStatus",
     "EmploymentContract",
+    "SalaryChange",
     "User",
     "UserRole",
 ]

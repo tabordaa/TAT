@@ -16,6 +16,7 @@ const ACTION_LABELS: Record<string, string> = {
   CONTRACT_ASSIGNED: 'Contrato asignado',
   EMPLOYEE_REHIRED: 'Reingreso',
   CONTRACT_TERMINATED: 'Contrato finalizado',
+  EMPLOYMENT_UPDATED: 'Datos laborales actualizados',
 }
 
 const FIELD_LABELS: Record<string, string> = {

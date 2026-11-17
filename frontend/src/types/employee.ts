@@ -111,6 +111,14 @@ export interface Employee extends Omit<EmployeeCreatePayload, 'account_role'> {
   created_at: string
 }
 
+/** Body of PATCH /employees/{id}/employment (HU-2.4): only the fields that change. */
+export interface EmploymentUpdatePayload {
+  position?: string
+  area?: string
+  /** Decimal as string, like the registration. */
+  salary?: string
+}
+
 /** Body of PATCH /me/employee (HU-2.7). */
 export interface ContactPayload {
   phone: string | null

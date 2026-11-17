@@ -16,6 +16,8 @@ from app.models.employee import (
 )
 from app.models.user import UserRole
 
+CENTS = Decimal("0.01")
+
 
 def _check_contract_dates(
     contract_type: ContractType, start_date: date, end_date: date | None
@@ -75,6 +77,30 @@ class ContractAssign(BaseModel):
     @model_validator(mode="after")
     def _check_dates(self) -> Self:
         _check_contract_dates(self.contract_type, self.start_date, self.end_date)
+        return self
+
+
+class EmploymentUpdate(BaseModel):
+    """HU-2.4: position, area and salary. Whatever is left out stays as it is.
+
+    Same limits as the registration. extra="forbid" answers 422 to anything
+    else (status, contract, personal data): those have their own flows.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    position: str | None = Field(default=None, min_length=1, max_length=120)
+    area: str | None = Field(default=None, min_length=1, max_length=120)
+    salary: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+
+    @model_validator(mode="after")
+    def _at_least_one(self) -> Self:
+        if self.position is None and self.area is None and self.salary is None:
+            raise ValueError("send at least one of position, area or salary")
+        if self.salary is not None:
+            # "4750000" and "4750000.00" are the same amount: store and audit it
+            # always with cents, like the NUMERIC(12, 2) column returns it.
+            self.salary = self.salary.quantize(CENTS)
         return self
 
 

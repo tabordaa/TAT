@@ -1,6 +1,7 @@
 import { api } from './client'
 import type {
   AccountCreated,
+  Employee,
   EmployeeCreated,
   EmployeeCreatePayload,
   EmployeeDetail,
@@ -8,6 +9,7 @@ import type {
   EmployeeListResponse,
   EmployeeOverview,
   EmployeeStats,
+  EmploymentUpdatePayload,
 } from '../types/employee'
 
 /** GET /employees/{id}. Rejects with an axios 404 error when the employee does not exist. */
@@ -20,6 +22,18 @@ export async function getEmployee(id: string, signal?: AbortSignal): Promise<Emp
 export async function resetAccountPassword(employeeId: string): Promise<AccountCreated> {
   const { data } = await api.post<AccountCreated>(
     `/employees/${encodeURIComponent(employeeId)}/account/reset-password`,
+  )
+  return data
+}
+
+/** PATCH /employees/{id}/employment (ADMIN and HR): position, area and salary. */
+export async function updateEmployment(
+  employeeId: string,
+  payload: EmploymentUpdatePayload,
+): Promise<Employee> {
+  const { data } = await api.patch<Employee>(
+    `/employees/${encodeURIComponent(employeeId)}/employment`,
+    payload,
   )
   return data
 }
