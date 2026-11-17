@@ -157,7 +157,7 @@ def test_a_rehire_starts_from_zero(
     assert auth_client.post(
         f"/employees/{created['id']}/contracts",
         json={"contract_type": "INDEFINIDO", "start_date": _days_ago(30), "end_date": None},
-    ).status_code == 200
+    ).status_code == 201  # a new contract is a new resource
 
     balance = _balance(auth_client, created["id"])
 
