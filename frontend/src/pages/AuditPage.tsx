@@ -18,6 +18,8 @@ const ACTION_LABELS: Record<string, string> = {
   CONTRACT_TERMINATED: 'Contrato finalizado',
   EMPLOYMENT_UPDATED: 'Datos laborales actualizados',
   VACATION_REQUESTED: 'Vacaciones solicitadas',
+  VACATION_APPROVED: 'Vacaciones aprobadas',
+  VACATION_REJECTED: 'Vacaciones rechazadas',
 }
 
 const FIELD_LABELS: Record<string, string> = {

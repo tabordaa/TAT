@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.vacation import VacationStatus
 from app.services.vacations import DAYS_PER_YEAR, VacationBalance
@@ -62,3 +62,19 @@ class VacationRequestResponse(BaseModel):
     reason: str | None
     created_at: datetime
     decided_at: datetime | None
+
+
+class VacationInboxItem(VacationRequestResponse):
+    """HU-4.2: a request in HR's inbox, with who asked and what they have left."""
+
+    employee_id: uuid.UUID
+    employee_name: str
+    available_days: Decimal  # the balance the approval will be checked against
+
+
+class VacationReject(BaseModel):
+    """HU-4.2 CA03: rejecting requires a reason, which the employee will read."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    reason: str = Field(min_length=5, max_length=500)

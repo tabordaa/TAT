@@ -185,7 +185,8 @@ a {
   color: var(--color-danger);
 }
 .field input,
-.field select {
+.field select,
+.field textarea {
   font: inherit;
   width: 100%;
   padding: 0.65rem 0.8rem;
@@ -195,7 +196,8 @@ a {
   color: var(--color-text);
 }
 .field-invalid input,
-.field-invalid select {
+.field-invalid select,
+.field-invalid textarea {
   border-color: var(--color-danger);
   box-shadow: 0 0 0 1px var(--color-danger);
 }
@@ -733,6 +735,12 @@ a {
 }
 .detail-section {
   padding: 1.5rem 2rem;
+}
+/* HU-4.2: approve and reject side by side in a table row. */
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 /* HU-4.3: the available vacation days, the number people look for first. */
 .balance-headline {

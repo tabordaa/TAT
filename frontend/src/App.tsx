@@ -13,6 +13,7 @@ import { LoginPage } from './pages/LoginPage'
 import { MyProfilePage } from './pages/MyProfilePage'
 import { MyVacationsPage } from './pages/MyVacationsPage'
 import { RegisterEmployeePage } from './pages/RegisterEmployeePage'
+import { VacationInboxPage } from './pages/VacationInboxPage'
 
 export function App() {
   return (
@@ -34,6 +35,7 @@ export function App() {
               </Route>
               <Route element={<RoleRoute allowed={['ADMIN', 'HR']} />}>
                 <Route path="/empleados/nuevo" element={<RegisterEmployeePage />} />
+                <Route path="/vacaciones/solicitudes" element={<VacationInboxPage />} />
               </Route>
               <Route element={<RoleRoute allowed={['ADMIN']} />}>
                 <Route path="/auditoria" element={<AuditPage />} />

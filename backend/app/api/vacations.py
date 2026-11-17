@@ -1,19 +1,26 @@
-"""Vacations: balance (HU-4.3) and the employee's own requests (HU-4.1)."""
+"""Vacations: balance (HU-4.3), the employee's requests (HU-4.1) and HR's
+decisions on them (HU-4.2)."""
 
 import uuid
+from datetime import datetime, timezone
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.api.deps import CurrentUser, DbSession, EmployeeReader
+from app.api.deps import CurrentUser, DbSession, EmployeeReader, HrStaff
 from app.api.employees import get_employee_or_404, lock_employee_or_404
 from app.api.me import own_employee
 from app.core.clock import today
 from app.models.audit_log import AuditAction
-from app.models.employee import EmployeeStatus
+from app.models.employee import Employee, EmployeeStatus
+from app.models.user import User
 from app.models.vacation import VacationRequest, VacationStatus
 from app.schemas.vacation import (
     VacationBalanceResponse,
+    VacationInboxItem,
+    VacationReject,
     VacationRequestCreate,
     VacationRequestResponse,
 )
@@ -26,6 +33,8 @@ from app.services.vacations import (
 )
 
 router = APIRouter(tags=["vacations"])
+
+INBOX_LIMIT = 200  # a bound on the inbox; far above what this company will have pending
 
 
 def rejected(code: int, field: str, message: str) -> HTTPException:
@@ -118,6 +127,121 @@ def create_my_vacation_request(
     db.commit()
     db.refresh(vacation)
     return vacation
+
+
+def _inbox_item(db: Session, vacation: VacationRequest, employee: Employee) -> VacationInboxItem:
+    return VacationInboxItem(
+        **VacationRequestResponse.model_validate(vacation).model_dump(),
+        employee_id=employee.id,
+        employee_name=f"{employee.first_names} {employee.last_names}",
+        available_days=vacation_balance(db, employee).available,
+    )
+
+
+@router.get("/vacation-requests", response_model=list[VacationInboxItem])
+def list_vacation_requests(
+    db: DbSession,
+    current_user: HrStaff,  # session required (401) and ADMIN or HR role (403)
+    status_filter: Annotated[VacationStatus, Query(alias="status")] = VacationStatus.PENDIENTE,
+) -> list[VacationInboxItem]:
+    """HU-4.2 CA01: HR's inbox. PENDIENTE by default, the nearest dates first."""
+    rows = db.execute(
+        select(VacationRequest, Employee)
+        .join(Employee, Employee.id == VacationRequest.employee_id)
+        .where(VacationRequest.status == status_filter)
+        .order_by(VacationRequest.start_date, VacationRequest.created_at)
+        .limit(INBOX_LIMIT)
+    ).all()
+    return [_inbox_item(db, vacation, employee) for vacation, employee in rows]
+
+
+def _lock_pending_request(
+    db: Session, request_id: uuid.UUID, current_user: User
+) -> tuple[VacationRequest, Employee]:
+    """Lock the employee, then the request, in the same order as every other
+    write (a request, a departure): one order everywhere means no deadlock."""
+    found = db.get(VacationRequest, request_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail="Vacation request not found")
+    employee = lock_employee_or_404(db, found.employee_id)
+    vacation = db.scalars(
+        select(VacationRequest)
+        .where(VacationRequest.id == request_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)  # read the status again after the lock
+    ).one()
+    if vacation.status is not VacationStatus.PENDIENTE:
+        raise rejected(409, "status", "Only a pending request can be decided")
+    # Nobody approves their own vacations, not even an ADMIN.
+    if current_user.employee_id == employee.id:
+        raise rejected(403, "employee", "You cannot decide on your own request")
+    return vacation, employee
+
+
+@router.post("/vacation-requests/{request_id}/approve", response_model=VacationInboxItem)
+def approve_vacation_request(
+    request_id: uuid.UUID,
+    request: Request,
+    db: DbSession,
+    current_user: HrStaff,
+) -> VacationInboxItem:
+    """HU-4.2 CA02: APROBADA; its days now count as used in the balance.
+
+    Nothing is subtracted by hand: the balance is calculated from the approved
+    requests, so changing the status IS the discount. It is checked once more
+    here, because the balance may have changed since the employee asked.
+    """
+    vacation, employee = _lock_pending_request(db, request_id, current_user)
+    if employee.status is not EmployeeStatus.ACTIVO:
+        raise rejected(409, "status", "The employee is no longer active")
+    available = vacation_balance(db, employee).available
+    if vacation.business_days > available:
+        raise rejected(409, "business_days", f"Only {available} days are available")
+
+    vacation.status = VacationStatus.APROBADA
+    vacation.decided_by_id = current_user.id
+    vacation.decided_at = datetime.now(timezone.utc)
+    record_audit(
+        db,
+        actor=current_user,
+        request=request,
+        action=AuditAction.VACATION_APPROVED,
+        entity_type="vacation_request",
+        entity_id=vacation.id,
+        changes={"status": (VacationStatus.PENDIENTE, VacationStatus.APROBADA)},
+    )
+    db.commit()
+    return _inbox_item(db, vacation, employee)
+
+
+@router.post("/vacation-requests/{request_id}/reject", response_model=VacationInboxItem)
+def reject_vacation_request(
+    request_id: uuid.UUID,
+    data: VacationReject,
+    request: Request,
+    db: DbSession,
+    current_user: HrStaff,
+) -> VacationInboxItem:
+    """HU-4.2 CA03: RECHAZADA with a mandatory reason; no days are used."""
+    vacation, employee = _lock_pending_request(db, request_id, current_user)
+    vacation.status = VacationStatus.RECHAZADA
+    vacation.reason = data.reason
+    vacation.decided_by_id = current_user.id
+    vacation.decided_at = datetime.now(timezone.utc)
+    record_audit(
+        db,
+        actor=current_user,
+        request=request,
+        action=AuditAction.VACATION_REJECTED,
+        entity_type="vacation_request",
+        entity_id=vacation.id,
+        changes={
+            "status": (VacationStatus.PENDIENTE, VacationStatus.RECHAZADA),
+            "reason": (None, data.reason),
+        },
+    )
+    db.commit()
+    return _inbox_item(db, vacation, employee)
 
 
 @router.get("/me/vacation-requests", response_model=list[VacationRequestResponse])
