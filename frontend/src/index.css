@@ -430,7 +430,11 @@ a {
   flex: 1;
   min-width: 0;
   padding: 2rem;
-  max-width: 1200px;
+}
+/* Tables use the whole width; a record's label/value pairs stay at a
+   comfortable reading width instead of drifting apart on wide monitors. */
+.page-readable {
+  max-width: 1100px;
 }
 
 /* ---------- Pages ---------- */

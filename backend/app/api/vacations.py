@@ -3,6 +3,7 @@ decisions on them (HU-4.2)."""
 
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
@@ -27,6 +28,7 @@ from app.schemas.vacation import (
 )
 from app.services.audit import record_audit
 from app.services.vacations import (
+    available_days_for,
     business_days,
     current_contract,
     overlaps_existing,
@@ -130,12 +132,14 @@ def create_my_vacation_request(
     return vacation
 
 
-def _inbox_item(db: Session, vacation: VacationRequest, employee: Employee) -> VacationInboxItem:
+def _inbox_item(
+    vacation: VacationRequest, employee: Employee, available: Decimal
+) -> VacationInboxItem:
     return VacationInboxItem(
         **VacationRequestResponse.model_validate(vacation).model_dump(),
         employee_id=employee.id,
         employee_name=f"{employee.first_names} {employee.last_names}",
-        available_days=vacation_balance(db, employee).available,
+        available_days=available,
     )
 
 
@@ -153,7 +157,9 @@ def list_vacation_requests(
         .order_by(VacationRequest.start_date, VacationRequest.created_at)
         .limit(INBOX_LIMIT)
     ).all()
-    return [_inbox_item(db, vacation, employee) for vacation, employee in rows]
+    # One batch for every row: the per-row balance was an N+1 (3 queries per row).
+    available = available_days_for(db, list({employee.id: employee for _, employee in rows}.values()))
+    return [_inbox_item(vacation, employee, available[employee.id]) for vacation, employee in rows]
 
 
 def _lock_pending_request(
@@ -212,7 +218,7 @@ def approve_vacation_request(
         changes={"status": (VacationStatus.PENDIENTE, VacationStatus.APROBADA)},
     )
     db.commit()
-    return _inbox_item(db, vacation, employee)
+    return _inbox_item(vacation, employee, vacation_balance(db, employee).available)
 
 
 @router.post("/vacation-requests/{request_id}/reject", response_model=VacationInboxItem)
@@ -242,7 +248,7 @@ def reject_vacation_request(
         },
     )
     db.commit()
-    return _inbox_item(db, vacation, employee)
+    return _inbox_item(vacation, employee, vacation_balance(db, employee).available)
 
 
 def _month_bounds(month: str) -> tuple[date, date]:
