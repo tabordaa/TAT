@@ -1,7 +1,7 @@
 {
   "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ]; then exit 1; else exit 0; fi",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://tat-api.onrender.com/:path*" },
+    { "source": "/api/:path*", "destination": "https://tat-api-d9ok.onrender.com/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
