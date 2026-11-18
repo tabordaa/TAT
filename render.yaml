@@ -3,6 +3,10 @@ services:
     name: tat-api
     runtime: python
     plan: free
+    # Same region as the production Supabase project (us-east-1). Every query is a
+    # round trip to the database: across regions that adds ~70 ms to each one.
+    # Render cannot move an existing service; a new region means a new service.
+    region: virginia
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     # Migrations run before the server starts: if one fails, the old version
@@ -10,7 +14,9 @@ services:
     # client IP itself, counting only the proxies we trust.
     startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-proxy-headers
     healthCheckPath: /health
-    autoDeploy: true
+    # Deploy a commit on main only after its GitHub checks (backend, frontend,
+    # e2e) pass, so a red build never reaches production.
+    autoDeployTrigger: checksPass
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8

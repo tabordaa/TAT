@@ -14,7 +14,7 @@ Browser -> Vercel (static app + /api rewrite) -> Render (FastAPI) -> Supabase (P
 
 ## 1. API on Render
 
-1. New > Blueprint > select this repository. Render reads `render.yaml`.
+1. New > Blueprint > select this repository. Render reads `render.yaml`, which places the service in `virginia`, next to a Supabase project in `us-east-1`. If your Supabase project is in another region, change `region` first: Render cannot move a service after it is created.
 2. Enter the variables marked `sync: false`:
 
 | Variable | Value |
@@ -37,6 +37,8 @@ If the service name was taken, Render adds a suffix to the URL. Update `destinat
 1. Add New > Project > select this repository.
 2. Set **Root Directory** to `frontend`. Vercel detects Vite (build `npm run build`, output `dist`).
 3. Deploy. Put the final URL in `CORS_ORIGINS` on Render.
+
+Only `main` is deployed: `ignoreCommand` in `vercel.json` skips every other branch. PR previews are off on purpose, because the `/api` rewrite points to the production API, so a preview would run unmerged code against real data.
 
 ## 3. Verify in production
 
@@ -65,7 +67,7 @@ A wrong value is not a crash, but all users could share one IP and one login lim
 Settings > Rules > Rulesets > New branch ruleset, targeting the default branch:
 
 - Require a pull request, with 0 required approvals.
-- Require status checks: `backend`, `frontend` and `e2e`.
+- Require status checks: `backend`, `frontend` and `e2e`. Render deploys `main` only after they pass (`autoDeployTrigger: checksPass`).
 - Allow only squash merges.
 - Block force pushes and restrict deletions.
 
