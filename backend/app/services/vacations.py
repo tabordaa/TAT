@@ -148,3 +148,54 @@ def vacation_balance(db: Session, employee: Employee) -> VacationBalance:
         available=available,
         requestable=available - pending,
     )
+
+
+def available_days_for(db: Session, employees: list[Employee]) -> dict[uuid.UUID, Decimal]:
+    """`vacation_balance(...).available` for many employees in a fixed number of
+    queries. The inbox used to call vacation_balance() once per row: three round
+    trips each, which against a remote database meant seconds for a few dozen rows.
+
+    Same rules as vacation_balance(): only ACTIVE employees with a contract in
+    force earn days, and only APPROVED requests of that contract are subtracted.
+    """
+    zero = Decimal("0.00")
+    result = {employee.id: zero for employee in employees}
+    active_ids = [e.id for e in employees if e.status is EmployeeStatus.ACTIVO]
+    if not active_ids:
+        return result
+
+    on = today()
+
+    q_contracts = (
+        select(EmploymentContract.employee_id, EmploymentContract.start_date)
+        .where(
+            EmploymentContract.employee_id.in_(active_ids),
+            EmploymentContract.terminated_on.is_(None)
+        )
+    )
+
+    contract_starts: dict[uuid.UUID, date] = dict(db.execute(q_contracts).tuples().all())
+
+    if not contract_starts:
+        return result
+
+    q_used = (
+        select(
+            VacationRequest.employee_id,
+            func.sum(VacationRequest.business_days)
+        )
+        .select_from(VacationRequest)
+        .join(EmploymentContract, VacationRequest.employee_id == EmploymentContract.employee_id)
+        .where(
+            VacationRequest.employee_id.in_(contract_starts.keys()),
+            EmploymentContract.terminated_on.is_(None),
+            VacationRequest.start_date >= EmploymentContract.start_date,
+            VacationRequest.status == VacationStatus.APROBADA
+        )
+        .group_by(VacationRequest.employee_id)
+    )
+    used: dict[uuid.UUID, int] = dict(db.execute(q_used).tuples().all())
+
+    for employee_id, start in contract_starts.items():
+        result[employee_id] = accrued_days(start, on) - used.get(employee_id, 0)
+    return result
