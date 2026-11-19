@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { storageStateFor } from '../accounts'
-import { approveVacation, createPendingVacation, signIn } from '../api'
+import { apiAs, approveVacation, createPendingVacation, signIn } from '../api'
 import { addDays, nextMonday } from '../data'
 
 // HU-4.7 (#161): counters in the sidebar and the news of a decided request.
@@ -18,6 +18,18 @@ async function pendingBadge(page: Page): Promise<number> {
   return match === null ? 0 : Number(match[1])
 }
 
+/** What the API counts right now: the badge must end up showing the same. */
+async function pendingInApi(): Promise<number> {
+  const hr = await apiAs('HR')
+  try {
+    const response = await hr.get('/api/vacation-requests/pending-count')
+    expect(response.status()).toBe(200)
+    return ((await response.json()) as { count: number }).count
+  } finally {
+    await hr.dispose()
+  }
+}
+
 test.describe('as HR', () => {
   test.use({ storageState: storageStateFor('HR') })
 
@@ -25,7 +37,9 @@ test.describe('as HR', () => {
     page,
   }) => {
     await page.goto('/dashboard')
-    const before = await pendingBadge(page)
+    const before = await pendingInApi()
+    // The badge loads after the page: wait until it shows what the API counts.
+    await expect.poll(() => pendingBadge(page)).toBe(before)
 
     const monday = nextMonday(10)
     const { person } = await createPendingVacation(365, monday, addDays(monday, 1))
