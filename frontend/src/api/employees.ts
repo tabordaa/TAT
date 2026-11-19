@@ -102,3 +102,9 @@ export async function getEmployeeOverview(signal?: AbortSignal): Promise<Employe
   const { data } = await api.get<EmployeeOverview>('/employees/overview', { signal })
   return data
 }
+
+/** GET /employees/areas (ADMIN, HR and MANAGER): areas with active people, A to Z (HU-4.8). */
+export async function getAreas(signal?: AbortSignal): Promise<string[]> {
+  const { data } = await api.get<string[]>('/employees/areas', { signal })
+  return data
+}

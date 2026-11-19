@@ -20,13 +20,14 @@ export async function getVacationInbox(
   return data
 }
 
-/** GET /vacation-calendar?month=YYYY-MM (ADMIN, HR and MANAGER). */
+/** GET /vacation-calendar?month=YYYY-MM[&area=] (ADMIN, HR and MANAGER). No area: everybody. */
 export async function getVacationCalendar(
   month: string,
+  area: string | null = null,
   signal?: AbortSignal,
 ): Promise<CalendarAbsence[]> {
   const { data } = await api.get<CalendarAbsence[]>('/vacation-calendar', {
-    params: { month },
+    params: area === null ? { month } : { month, area },
     signal,
   })
   return data

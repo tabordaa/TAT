@@ -15,6 +15,8 @@ export async function apiAs(role: Role): Promise<APIRequestContext> {
 
 interface NewEmployeeOptions {
   accountRole?: UserRole
+  /** A realistic area of the person's job unless one is given (HU-4.8). */
+  area?: string
   contractType?: ContractType
   startDate?: string
   endDate?: string | null
@@ -38,7 +40,7 @@ export async function createEmployee(options: NewEmployeeOptions = {}): Promise<
     email: person.email,
     phone: person.phone,
     position: person.position,
-    area: person.area,
+    area: options.area ?? person.area,
     salary: person.salary,
     contract_type: options.contractType ?? 'INDEFINIDO',
     start_date: options.startDate ?? businessDate(-400),
@@ -112,9 +114,11 @@ export async function createPendingVacation(
   daysOfService: number,
   start: string,
   end: string,
+  options: { area?: string } = {},
 ): Promise<CreatedEmployee & { password: string; requestId: string }> {
   const created = await createEmployeeWithAccount('EMPLOYEE', {
     startDate: businessDate(-daysOfService),
+    ...options,
   })
   const context = await request.newContext({ baseURL: BASE_URL })
   try {

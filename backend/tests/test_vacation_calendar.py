@@ -71,6 +71,7 @@ def test_an_approved_vacation_appears_with_the_employee_name(
             "request_id": str(request_id),
             "employee_id": employee["id"],
             "employee_name": f"{employee['first_names']} {employee['last_names']}",
+            "area": employee["area"],
             "start_date": "2031-03-10",
             "end_date": "2031-03-14",
         }

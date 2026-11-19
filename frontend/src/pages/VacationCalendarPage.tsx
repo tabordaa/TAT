@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { getAreas } from '../api/employees'
 import { getHolidayMap } from '../api/holidays'
 import { getVacationCalendar } from '../api/vacations'
 import { IconAlert } from '../components/Icons'
-import { VacationCalendar } from '../components/VacationCalendar'
+import { VacationCalendar, buildMonth } from '../components/VacationCalendar'
 import type { CalendarAbsence } from '../types/vacation'
 import { todayInBogota } from '../utils/businessDays'
 
@@ -36,17 +37,45 @@ type Load =
   | { phase: 'error' }
   | { phase: 'ready'; absences: CalendarAbsence[]; holidays: ReadonlyMap<string, string> }
 
-// HU-4.4: approved vacations of everybody, month by month, to plan operations.
+const dayTitle = new Intl.DateTimeFormat('es-CO', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'UTC',
+})
+
+/** HU-4.8 CA02: "2 personas del área Ventas ausentes el lunes, 10 de marzo." */
+function absentSentence(count: number, area: string | null, day: string): string {
+  const who = count === 1 ? '1 persona' : `${count} personas`
+  const where = area === null ? 'de la empresa' : `del área ${area}`
+  const absent = count === 1 ? 'ausente' : 'ausentes'
+  return `${who} ${where} ${absent} el ${dayTitle.format(new Date(`${day}T00:00:00Z`))}.`
+}
+
+// HU-4.4: approved vacations, month by month, to plan operations.
+// HU-4.8: filtered by area, so a team does not leave all at once.
 export function VacationCalendarPage() {
   const [month, setMonth] = useState(() => todayInBogota().slice(0, 7))
+  const [area, setArea] = useState<string | null>(null)
+  const [areas, setAreas] = useState<string[]>([])
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [load, setLoad] = useState<Load>({ phase: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
+    getAreas(controller.signal)
+      .then(setAreas)
+      .catch(() => undefined) // without the list the calendar still shows everybody
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
     setLoad({ phase: 'loading' })
+    setSelectedDay(null)
     Promise.all([
-      getVacationCalendar(month, controller.signal),
+      getVacationCalendar(month, area, controller.signal),
       getHolidayMap([Number(month.slice(0, 4))], controller.signal),
     ])
       .then(([absences, holidays]) => setLoad({ phase: 'ready', absences, holidays }))
@@ -54,7 +83,7 @@ export function VacationCalendarPage() {
         if (!axios.isCancel(error)) setLoad({ phase: 'error' })
       })
     return () => controller.abort()
-  }, [month, reloadCount])
+  }, [month, area, reloadCount])
 
   const title = formatTitle(month)
 
@@ -85,6 +114,26 @@ export function VacationCalendarPage() {
           </button>
         </div>
 
+        <div className="calendar-filters">
+          <div className="field">
+            <div className="field-label-row">
+              <label htmlFor="calendar-area">Área</label>
+            </div>
+            <select
+              id="calendar-area"
+              value={area ?? ''}
+              onChange={(event) => setArea(event.target.value === '' ? null : event.target.value)}
+            >
+              <option value="">Todas las áreas</option>
+              {areas.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {load.phase === 'loading' && <p className="muted">Cargando calendario…</p>}
         {load.phase === 'error' && (
           <div className="alert alert-error" role="alert">
@@ -103,10 +152,27 @@ export function VacationCalendarPage() {
         )}
         {load.phase === 'ready' && (
           <>
-            <VacationCalendar month={month} absences={load.absences} holidays={load.holidays} />
+            <VacationCalendar
+              month={month}
+              absences={load.absences}
+              holidays={load.holidays}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+            />
+            {selectedDay !== null && (
+              <p className="alert alert-info" role="status">
+                {absentSentence(
+                  buildMonth(month, load.absences, load.holidays).find(
+                    (day) => day.iso === selectedDay,
+                  )?.names.length ?? 0,
+                  area,
+                  selectedDay,
+                )}
+              </p>
+            )}
             <p className="field-help">
               Solo vacaciones aprobadas y días hábiles; los festivos aparecen en amarillo. Pasa el cursor o usa Tab sobre un día marcado
-              para ver quién está ausente.
+              para ver quién está ausente; haz clic (o Enter) para ver cuántos son.
             </p>
 
             <h3 className="section-kicker">AUSENCIAS DEL MES</h3>

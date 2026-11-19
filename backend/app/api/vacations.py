@@ -269,11 +269,15 @@ def get_vacation_calendar(
     db: DbSession,
     current_user: EmployeeReader,  # ADMIN, HR and MANAGER plan around absences
     month: Annotated[str, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")],
+    area: Annotated[str | None, Query(max_length=120)] = None,
 ) -> list[CalendarAbsence]:
     """HU-4.4: APPROVED vacations that touch the month (CA02), including those
-    that start before it or end after it; the calendar draws only its own days."""
+    that start before it or end after it; the calendar draws only its own days.
+
+    HU-4.8: `area` keeps only that area's people, filtered by the database (an
+    exact match: the value comes from GET /employees/areas)."""
     first, last = _month_bounds(month)
-    rows = db.execute(
+    query = (
         select(VacationRequest, Employee)
         .join(Employee, Employee.id == VacationRequest.employee_id)
         .where(
@@ -282,12 +286,16 @@ def get_vacation_calendar(
             VacationRequest.end_date >= first,
         )
         .order_by(VacationRequest.start_date, Employee.last_names, Employee.first_names)
-    ).all()
+    )
+    if area is not None and area.strip() != "":
+        query = query.where(Employee.area == area.strip())
+    rows = db.execute(query).all()
     return [
         CalendarAbsence(
             request_id=vacation.id,
             employee_id=employee.id,
             employee_name=f"{employee.first_names} {employee.last_names}",
+            area=employee.area,
             start_date=vacation.start_date,
             end_date=vacation.end_date,
         )
