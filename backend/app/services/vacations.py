@@ -104,6 +104,15 @@ def overlaps_existing(
 
 
 CANCELLED_ON_DEPARTURE = "Contrato finalizado"
+CANCELLED_BY_EMPLOYEE = "Cancelada por el empleado"
+
+
+def can_be_cancelled(vacation: VacationRequest, on: date) -> bool:
+    """HU-4.5 CA01: a PENDING request, or an APPROVED one that has not started.
+    Once the first day has come, the days are being taken: HR must handle it."""
+    if vacation.status is VacationStatus.PENDIENTE:
+        return True
+    return vacation.status is VacationStatus.APROBADA and vacation.start_date > on
 
 
 def cancel_pending_requests(

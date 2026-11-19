@@ -112,7 +112,7 @@ export async function createPendingVacation(
   daysOfService: number,
   start: string,
   end: string,
-): Promise<CreatedEmployee & { requestId: string }> {
+): Promise<CreatedEmployee & { password: string; requestId: string }> {
   const created = await createEmployeeWithAccount('EMPLOYEE', {
     startDate: businessDate(-daysOfService),
   })

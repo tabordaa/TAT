@@ -28,8 +28,10 @@ from app.schemas.vacation import (
 )
 from app.services.audit import record_audit
 from app.services.vacations import (
+    CANCELLED_BY_EMPLOYEE,
     available_days_for,
     business_days,
+    can_be_cancelled,
     current_contract,
     overlaps_existing,
     vacation_balance,
@@ -301,3 +303,52 @@ def list_my_vacation_requests(current_user: CurrentUser, db: DbSession) -> list[
             .order_by(VacationRequest.start_date.desc(), VacationRequest.created_at.desc())
         )
     )
+
+
+@router.post("/me/vacation-requests/{request_id}/cancel", response_model=VacationRequestResponse)
+def cancel_my_vacation_request(
+    request_id: uuid.UUID,
+    request: Request,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> VacationRequest:
+    """HU-4.5: the employee withdraws a request that is PENDING, or APPROVED and
+    not started yet (CA01). Nothing is given back by hand: the balance is
+    calculated from the requests, so CANCELADA frees the days at once (CA02).
+
+    Someone else's request answers 404, the same as one that does not exist:
+    a 403 would confirm that the id is real.
+    """
+    owner = own_employee(current_user, db)
+    found = db.get(VacationRequest, request_id)
+    if found is None or found.employee_id != owner.id:
+        raise HTTPException(status_code=404, detail="Vacation request not found")
+
+    # The same lock order as every other write: employee first, then the request.
+    lock_employee_or_404(db, owner.id)
+    vacation = db.scalars(
+        select(VacationRequest)
+        .where(VacationRequest.id == request_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)  # HR may have decided it meanwhile
+    ).one()
+    if not can_be_cancelled(vacation, today()):
+        raise rejected(409, "status", "Only a pending request, or an approved one not started yet, can be cancelled")
+
+    previous = vacation.status
+    vacation.status = VacationStatus.CANCELADA
+    vacation.reason = CANCELLED_BY_EMPLOYEE
+    vacation.decided_by_id = current_user.id
+    vacation.decided_at = datetime.now(timezone.utc)
+    record_audit(
+        db,
+        actor=current_user,
+        request=request,
+        action=AuditAction.VACATION_CANCELLED,
+        entity_type="vacation_request",
+        entity_id=vacation.id,
+        changes={"status": (previous, VacationStatus.CANCELADA)},
+    )
+    db.commit()
+    db.refresh(vacation)
+    return vacation
