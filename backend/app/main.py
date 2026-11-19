@@ -12,6 +12,7 @@ from app.api.auth import router as auth_router
 from app.api.contracts import router as contracts_router
 from app.api.employees import router as employees_router
 from app.api.health import router as health_router
+from app.api.holidays import router as holidays_router
 from app.api.me import router as me_router
 from app.api.vacations import router as vacations_router
 from app.core.config import get_settings
@@ -78,6 +79,7 @@ def create_app() -> FastAPI:
     # Before employees_router, whose "/{employee_id}" would catch fixed paths.
     app.include_router(contracts_router)
     app.include_router(employees_router)
+    app.include_router(holidays_router)
     app.include_router(me_router)
     app.include_router(vacations_router)
 

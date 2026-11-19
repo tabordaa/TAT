@@ -7,6 +7,7 @@ import {
 } from '../api/vacations'
 import { IconAlert, IconCalendar, IconCheck } from '../components/Icons'
 import { VacationBalanceCard } from '../components/VacationBalanceCard'
+import { getHolidayMap } from '../api/holidays'
 import {
   VACATION_STATUS_LABELS,
   type VacationBalance,
@@ -59,7 +60,7 @@ function validate(values: Values, days: number | null, balance: VacationBalance 
   if (values.end === '') errors.end = 'Elige la fecha de fin.'
   else if (values.start !== '' && values.end < values.start)
     errors.end = 'La fecha de fin no puede ser anterior a la de inicio.'
-  else if (days === 0) errors.end = 'El rango no tiene días hábiles (solo fines de semana).'
+  else if (days === 0) errors.end = 'El rango no tiene días hábiles (solo fines de semana o festivos).'
   else if (days !== null && balance !== null && days > Number(balance.requestable_days))
     errors.end = `Superas tus días disponibles para solicitar (${balance.requestable_days}).`
   return errors
@@ -104,6 +105,18 @@ export function MyVacationsPage() {
   // HU-4.5: the request whose cancellation is being confirmed in its own row.
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  // HU-4.6: this year's and next year's holidays, so the count matches the server's.
+  // If they fail to load the form still works: the server counts again on submit.
+  const [holidays, setHolidays] = useState<ReadonlyMap<string, string>>(new Map())
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const year = Number(todayInBogota().slice(0, 4))
+    getHolidayMap([year, year + 1], controller.signal)
+      .then(setHolidays)
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -120,7 +133,11 @@ export function MyVacationsPage() {
     return () => controller.abort()
   }, [version])
 
-  const days = businessDaysBetween(values.start, values.end)
+  const holidayDays = new Set(holidays.keys())
+  const days = businessDaysBetween(values.start, values.end, holidayDays)
+  const holidaysInRange = [...holidays.entries()].filter(
+    ([day]) => values.start !== '' && values.end !== '' && values.start <= day && day <= values.end,
+  )
 
   function change(field: keyof Values, value: string) {
     setValues((previous) => ({ ...previous, [field]: value }))
@@ -268,7 +285,13 @@ export function MyVacationsPage() {
             ) : (
               <>
                 Días hábiles solicitados: <strong>{days}</strong>
-                <span className="muted"> (sin sábados ni domingos)</span>
+                <span className="muted"> (sin sábados, domingos ni festivos)</span>
+                {holidaysInRange.length > 0 && (
+                  <span className="field-help">
+                    Festivos en el rango:{' '}
+                    {holidaysInRange.map(([day, name]) => `${formatDate(day)} (${name})`).join(', ')}
+                  </span>
+                )}
               </>
             )}
           </p>

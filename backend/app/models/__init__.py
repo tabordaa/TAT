@@ -8,6 +8,7 @@ from app.models.employee import (
     EmployeeStatus,
     EmploymentContract,
 )
+from app.models.holiday import Holiday
 from app.models.salary_change import SalaryChange
 from app.models.user import User, UserRole
 from app.models.vacation import VacationRequest, VacationStatus
@@ -20,6 +21,7 @@ __all__ = [
     "Employee",
     "EmployeeStatus",
     "EmploymentContract",
+    "Holiday",
     "SalaryChange",
     "User",
     "UserRole",

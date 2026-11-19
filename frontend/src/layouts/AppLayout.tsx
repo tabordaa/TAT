@@ -89,9 +89,14 @@ export function AppLayout() {
             </NavLink>
           )}
           {user?.role === 'ADMIN' && (
-            <NavLink to="/auditoria" className="nav-item">
-              <IconShield /> Auditoría
-            </NavLink>
+            <>
+              <NavLink to="/festivos" className="nav-item">
+                <IconCalendar /> Festivos
+              </NavLink>
+              <NavLink to="/auditoria" className="nav-item">
+                <IconShield /> Auditoría
+              </NavLink>
+            </>
           )}
           {canReadEmployees && (
             <>

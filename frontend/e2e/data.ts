@@ -99,11 +99,50 @@ export function businessDate(days = 0): string {
   return date.toISOString().slice(0, 10)
 }
 
-/** A future Monday in Colombia, `weeksAhead` weeks from now (1 = the next one). */
+/** Colombian holidays 2026–2028, as app.services.holidays.colombian_holidays()
+ * calculates them (the holidays table is seeded with the same dates). Test data
+ * only: specs that expect "Monday to Friday = 5 days" skip the weeks that hold one. */
+export const COLOMBIAN_HOLIDAYS: ReadonlySet<string> = new Set([
+  '2026-01-01', '2026-01-12', '2026-03-23', '2026-04-02', '2026-04-03', '2026-05-01',
+  '2026-05-18', '2026-06-08', '2026-06-15', '2026-06-29', '2026-07-20', '2026-08-07',
+  '2026-08-17', '2026-10-12', '2026-11-02', '2026-11-16', '2026-12-08', '2026-12-25',
+  '2027-01-01', '2027-01-11', '2027-03-22', '2027-03-25', '2027-03-26', '2027-05-01',
+  '2027-05-10', '2027-05-31', '2027-06-07', '2027-07-05', '2027-07-20', '2027-08-07',
+  '2027-08-16', '2027-10-18', '2027-11-01', '2027-11-15', '2027-12-08', '2027-12-25',
+  '2028-01-01', '2028-01-10', '2028-03-20', '2028-04-13', '2028-04-14', '2028-05-01',
+  '2028-05-29', '2028-06-19', '2028-06-26', '2028-07-03', '2028-07-20', '2028-08-07',
+  '2028-08-21', '2028-10-16', '2028-11-06', '2028-11-13', '2028-12-08', '2028-12-25',
+])
+
+function weekHasHoliday(monday: string): boolean {
+  return [0, 1, 2, 3, 4].some((offset) => COLOMBIAN_HOLIDAYS.has(addDays(monday, offset)))
+}
+
+/** The Monday of the `weeksAhead`-th future week without holidays (1 = the first
+ * one), so Monday to Friday is always 5 business days, whatever today is. */
 export function nextMonday(weeksAhead = 1): string {
   const today = new Date(`${businessDate()}T12:00:00Z`)
   const toMonday = (8 - today.getUTCDay()) % 7 || 7 // Sunday is 0: one day ahead
-  return businessDate(toMonday + 7 * (weeksAhead - 1))
+  let candidate = businessDate(toMonday)
+  let found = 0
+  for (;;) {
+    if (!weekHasHoliday(candidate)) {
+      found += 1
+      if (found === weeksAhead) return candidate
+    }
+    candidate = addDays(candidate, 7)
+  }
+}
+
+/** The Monday of the first future week with a holiday on a weekday, and that holiday. */
+export function nextWeekWithHoliday(): { monday: string; holiday: string } {
+  const today = businessDate()
+  const holiday = [...COLOMBIAN_HOLIDAYS]
+    .sort()
+    .find((day) => day > addDays(today, 7) && ![0, 6].includes(new Date(`${day}T12:00:00Z`).getUTCDay()))
+  if (holiday === undefined) throw new Error('update COLOMBIAN_HOLIDAYS: no holiday ahead')
+  const weekday = new Date(`${holiday}T12:00:00Z`).getUTCDay() // 1 = Monday
+  return { monday: addDays(holiday, 1 - weekday), holiday }
 }
 
 /** `days` after a "YYYY-MM-DD" date. */
