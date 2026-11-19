@@ -1,6 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import axios from 'axios'
-import { createVacationRequest, getMyVacationRequests } from '../api/vacations'
+import {
+  cancelMyVacationRequest,
+  createVacationRequest,
+  getMyVacationRequests,
+} from '../api/vacations'
 import { IconAlert, IconCalendar, IconCheck } from '../components/Icons'
 import { VacationBalanceCard } from '../components/VacationBalanceCard'
 import {
@@ -40,6 +44,12 @@ type Requests =
   | { phase: 'not-linked' }
   | { phase: 'error' }
   | { phase: 'ready'; requests: VacationRequest[] }
+
+/** HU-4.5 CA01, mirrors can_be_cancelled() in the API: pending, or approved and not started. */
+function canCancel(request: VacationRequest, today: string): boolean {
+  if (request.status === 'PENDIENTE') return true
+  return request.status === 'APROBADA' && request.start_date > today
+}
 
 /** UX only: the same rules the API applies, so most mistakes show before sending. */
 function validate(values: Values, days: number | null, balance: VacationBalance | null): Errors {
@@ -91,6 +101,9 @@ export function MyVacationsPage() {
   const [requests, setRequests] = useState<Requests>({ phase: 'loading' })
   // Bumped after each request: the balance and the list are fetched again.
   const [version, setVersion] = useState(0)
+  // HU-4.5: the request whose cancellation is being confirmed in its own row.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -138,6 +151,29 @@ export function MyVacationsPage() {
       setIsSending(false)
     }
   }
+
+  async function handleCancel(request: VacationRequest) {
+    setCancellingId(request.id)
+    try {
+      await cancelMyVacationRequest(request.id)
+      setMessage({
+        kind: 'success',
+        text: `Solicitud del ${formatDate(request.start_date)} cancelada. Los días volvieron a tu saldo.`,
+      })
+      setVersion((count) => count + 1)
+    } catch {
+      setMessage({
+        kind: 'error',
+        text: 'No se pudo cancelar la solicitud. Puede que ya haya empezado o que Recursos Humanos la haya decidido.',
+      })
+      setVersion((count) => count + 1)
+    } finally {
+      setConfirmingId(null)
+      setCancellingId(null)
+    }
+  }
+
+  const today = todayInBogota()
 
   if (requests.phase === 'not-linked') {
     return (
@@ -266,6 +302,7 @@ export function MyVacationsPage() {
                     <th scope="col">Estado</th>
                     <th scope="col">Solicitada el</th>
                     <th scope="col">Motivo</th>
+                    <th scope="col">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -281,6 +318,39 @@ export function MyVacationsPage() {
                       </td>
                       <td>{instantFormatter.format(new Date(request.created_at))}</td>
                       <td>{request.reason ?? '—'}</td>
+                      <td>
+                        {canCancel(request, today) && confirmingId !== request.id && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => setConfirmingId(request.id)}
+                            aria-label={`Cancelar solicitud del ${formatDate(request.start_date)}`}
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                        {confirmingId === request.id && (
+                          <div className="row-actions" role="group" aria-label="Confirmar cancelación">
+                            <span>¿Cancelar esta solicitud?</span>
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              onClick={() => void handleCancel(request)}
+                              disabled={cancellingId === request.id}
+                            >
+                              {cancellingId === request.id ? 'Cancelando…' : 'Sí, cancelar'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => setConfirmingId(null)}
+                              disabled={cancellingId === request.id}
+                            >
+                              No
+                            </button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

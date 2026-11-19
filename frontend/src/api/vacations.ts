@@ -80,3 +80,11 @@ export async function createVacationRequest(
   const { data } = await api.post<VacationRequest>('/me/vacation-requests', payload)
   return data
 }
+
+/** POST /me/vacation-requests/{id}/cancel (HU-4.5): only my PENDIENTE or not-started APROBADA ones. */
+export async function cancelMyVacationRequest(id: string): Promise<VacationRequest> {
+  const { data } = await api.post<VacationRequest>(
+    `/me/vacation-requests/${encodeURIComponent(id)}/cancel`,
+  )
+  return data
+}
