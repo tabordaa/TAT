@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { getMyUnseenDecisions, getPendingCount } from '../api/vacations'
+import { onVacationsChanged } from '../utils/vacationEvents'
 import { useAuth } from '../auth/useAuth'
 import { ROLE_LABELS } from '../types/auth'
 import { BrandLogo } from '../components/BrandLogo'
@@ -20,6 +22,31 @@ export function AppLayout() {
   const navigate = useNavigate()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const canReadEmployees = user !== null && user.role !== 'EMPLOYEE'
+  const isHrStaff = user?.role === 'ADMIN' || user?.role === 'HR'
+  const hasRecord = user?.employee_id != null
+  const { pathname } = useLocation()
+  // HU-4.7: counters next to the vacation links. They refresh on every page
+  // change and when a page reports a change; a failure only hides the badge.
+  const [pendingCount, setPendingCount] = useState(0)
+  const [unseenCount, setUnseenCount] = useState(0)
+  const [refreshCount, setRefreshCount] = useState(0)
+
+  useEffect(() => onVacationsChanged(() => setRefreshCount((count) => count + 1)), [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    if (isHrStaff) {
+      getPendingCount(controller.signal)
+        .then(setPendingCount)
+        .catch(() => undefined)
+    }
+    if (hasRecord) {
+      getMyUnseenDecisions(controller.signal)
+        .then((news) => setUnseenCount(news.count))
+        .catch(() => undefined)
+    }
+    return () => controller.abort()
+  }, [isHrStaff, hasRecord, pathname, refreshCount])
 
   async function handleLogout() {
     setIsLoggingOut(true)
@@ -80,12 +107,22 @@ export function AppLayout() {
               </NavLink>
               <NavLink to="/mis-vacaciones" className="nav-item">
                 <IconCalendar /> Mis vacaciones
+                {unseenCount > 0 && (
+                  <span className="badge badge-warning nav-badge">
+                    {unseenCount === 1 ? '1 novedad' : `${unseenCount} novedades`}
+                  </span>
+                )}
               </NavLink>
             </>
           )}
-          {(user?.role === 'ADMIN' || user?.role === 'HR') && (
+          {isHrStaff && (
             <NavLink to="/vacaciones/solicitudes" className="nav-item">
               <IconCalendar /> Solicitudes de vacaciones
+              {pendingCount > 0 && (
+                <span className="badge badge-warning nav-badge">
+                  {pendingCount === 1 ? '1 pendiente' : `${pendingCount} pendientes`}
+                </span>
+              )}
             </NavLink>
           )}
           {user?.role === 'ADMIN' && (

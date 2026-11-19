@@ -58,3 +58,9 @@ export interface VacationInboxItem extends VacationRequest {
   /** What the employee has available; the approval is checked against it. */
   available_days: string
 }
+
+/** GET /me/vacation-requests/unseen (HU-4.7): decided by someone else since my last visit. */
+export interface UnseenDecisions {
+  count: number
+  request_ids: string[]
+}
