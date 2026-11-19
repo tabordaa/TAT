@@ -79,6 +79,7 @@ class CalendarAbsence(BaseModel):
     request_id: uuid.UUID
     employee_id: uuid.UUID
     employee_name: str
+    area: str  # HU-4.8: the calendar can be filtered by area
     start_date: date
     end_date: date
 

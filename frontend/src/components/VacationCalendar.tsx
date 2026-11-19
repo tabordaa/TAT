@@ -49,12 +49,21 @@ interface VacationCalendarProps {
   month: string
   absences: CalendarAbsence[]
   holidays?: ReadonlyMap<string, string>
+  /** HU-4.8: a marked day can be chosen (click, Enter or Space) to see its count. */
+  selectedDay?: string | null
+  onSelectDay?: (iso: string) => void
 }
 
 // HU-4.4: a month as a CSS grid (CA01), Monday first. A marked day shows who is
 // away on hover AND on keyboard focus (CA03): the names are also in its label,
 // so a screen reader hears them without the tooltip.
-export function VacationCalendar({ month, absences, holidays }: VacationCalendarProps) {
+export function VacationCalendar({
+  month,
+  absences,
+  holidays,
+  selectedDay = null,
+  onSelectDay,
+}: VacationCalendarProps) {
   const days = buildMonth(month, absences, holidays)
   // Empty cells before day 1 so it falls under its weekday (Monday = column 1).
   const firstWeekday = (new Date(`${month}-01T00:00:00Z`).getUTCDay() + 6) % 7
@@ -85,8 +94,21 @@ export function VacationCalendar({ month, absences, holidays }: VacationCalendar
                 day.isWeekend ? 'calendar-weekend' : '',
                 day.holiday !== null ? 'calendar-holiday' : '',
                 marked ? 'calendar-marked' : '',
+                day.iso === selectedDay ? 'calendar-selected' : '',
               ].join(' ')}
               tabIndex={marked ? 0 : undefined}
+              aria-selected={marked && onSelectDay !== undefined ? day.iso === selectedDay : undefined}
+              onClick={marked && onSelectDay !== undefined ? () => onSelectDay(day.iso) : undefined}
+              onKeyDown={
+                marked && onSelectDay !== undefined
+                  ? (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onSelectDay(day.iso)
+                      }
+                    }
+                  : undefined
+              }
               aria-label={
                 day.holiday !== null
                   ? `${label}: festivo, ${day.holiday}`

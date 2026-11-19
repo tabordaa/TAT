@@ -284,6 +284,19 @@ def get_employee_stats(
     return EmployeeStats(total=row[0], active=row[1], inactive=row[2])
 
 
+@router.get("/areas", response_model=list[str])
+def list_areas(db: DbSession, current_user: EmployeeReader) -> list[str]:
+    """HU-4.8: the areas with active employees, for the calendar's area filter."""
+    return list(
+        db.scalars(
+            select(Employee.area)
+            .where(Employee.status == EmployeeStatus.ACTIVO)
+            .distinct()
+            .order_by(Employee.area)
+        )
+    )
+
+
 def _count_active_by(
     db: Session, column: InstrumentedAttribute[str]
 ) -> list[CountItem]:

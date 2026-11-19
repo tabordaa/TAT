@@ -45,6 +45,8 @@ export interface CalendarAbsence {
   request_id: string
   employee_id: string
   employee_name: string
+  /** HU-4.8: the calendar can be filtered by it. */
+  area: string
   start_date: string
   end_date: string
 }
