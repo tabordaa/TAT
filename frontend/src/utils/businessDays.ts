@@ -10,8 +10,13 @@ function parseDate(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-/** Monday to Friday between both dates, inclusive; null if a date is missing or invalid. */
-export function businessDaysBetween(start: string, end: string): number | null {
+/** Monday to Friday between both dates, inclusive, minus the `holidays` (YYYY-MM-DD)
+ * on one of those days (HU-4.6); null if a date is missing or invalid. */
+export function businessDaysBetween(
+  start: string,
+  end: string,
+  holidays: ReadonlySet<string> = new Set(),
+): number | null {
   const from = parseDate(start)
   const to = parseDate(end)
   if (from === null || to === null) return null
@@ -22,6 +27,12 @@ export function businessDaysBetween(start: string, end: string): number | null {
   for (let offset = 0; offset < total % 7; offset += 1) {
     const day = new Date(from.getTime() + (fullWeeks * 7 + offset) * DAY_MS).getUTCDay()
     if (day !== 0 && day !== 6) count += 1
+  }
+  for (const holiday of holidays) {
+    const date = parseDate(holiday)
+    if (date === null || holiday < start || holiday > end) continue // ISO strings compare as dates
+    const weekday = date.getUTCDay()
+    if (weekday !== 0 && weekday !== 6) count -= 1
   }
   return count
 }

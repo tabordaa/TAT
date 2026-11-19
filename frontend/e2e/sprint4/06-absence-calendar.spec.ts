@@ -1,18 +1,25 @@
 import { expect, test, type Page } from '@playwright/test'
 import { storageStateFor } from '../accounts'
 import { approveVacation, createPendingVacation } from '../api'
-import { addDays, businessDate } from '../data'
+import { COLOMBIAN_HOLIDAYS, addDays, businessDate } from '../data'
 
 // HU-4.4 (#31): a manager plans with the monthly calendar of approved absences.
 
 test.use({ storageState: storageStateFor('MANAGER') })
 
-/** The second Monday of the month two months from now: the range stays inside one month. */
+/** A Monday of the month two months from now, from its second week on, such that
+ * Monday to the next Monday holds no holiday (HU-4.6) and stays inside the month. */
 function plannedMonday(): string {
   const today = new Date(`${businessDate()}T12:00:00Z`)
   const target = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 2, 8, 12))
   const toMonday = (8 - target.getUTCDay()) % 7
-  return addDays(target.toISOString().slice(0, 10), toMonday)
+  let monday = addDays(target.toISOString().slice(0, 10), toMonday)
+  const hasHoliday = (start: string) =>
+    Array.from({ length: 8 }, (_, offset) => addDays(start, offset)).some((day) =>
+      COLOMBIAN_HOLIDAYS.has(day),
+    )
+  while (hasHoliday(monday)) monday = addDays(monday, 7)
+  return monday
 }
 
 function marked(page: Page, name: string) {

@@ -12,13 +12,18 @@ interface Day {
   iso: string // YYYY-MM-DD
   dayOfMonth: number
   isWeekend: boolean
+  holiday: string | null // its name, when the day is a holiday (HU-4.6)
   names: string[]
 }
 
 /** The days of `month` ("YYYY-MM"), each with who is away on it. UTC throughout,
- * so the viewer's time zone cannot move a day. Weekends are never marked:
- * vacations only count business days (HU-4.1 CA02). */
-export function buildMonth(month: string, absences: CalendarAbsence[]): Day[] {
+ * so the viewer's time zone cannot move a day. Weekends and holidays are never
+ * marked as absences: vacations only count business days (HU-4.1 CA02, HU-4.6). */
+export function buildMonth(
+  month: string,
+  absences: CalendarAbsence[],
+  holidays: ReadonlyMap<string, string> = new Map(),
+): Day[] {
   const year = Number(month.slice(0, 4))
   const number = Number(month.slice(5, 7))
   const total = new Date(Date.UTC(year, number, 0)).getUTCDate()
@@ -28,13 +33,14 @@ export function buildMonth(month: string, absences: CalendarAbsence[]): Day[] {
     const iso = date.toISOString().slice(0, 10)
     const weekday = date.getUTCDay()
     const isWeekend = weekday === 0 || weekday === 6
-    const names = isWeekend
+    const holiday = holidays.get(iso) ?? null
+    const names = isWeekend || holiday !== null
       ? []
       : absences
           // ISO dates compare correctly as plain strings.
           .filter((absence) => absence.start_date <= iso && iso <= absence.end_date)
           .map((absence) => absence.employee_name)
-    days.push({ iso, dayOfMonth, isWeekend, names })
+    days.push({ iso, dayOfMonth, isWeekend, holiday, names })
   }
   return days
 }
@@ -42,13 +48,14 @@ export function buildMonth(month: string, absences: CalendarAbsence[]): Day[] {
 interface VacationCalendarProps {
   month: string
   absences: CalendarAbsence[]
+  holidays?: ReadonlyMap<string, string>
 }
 
 // HU-4.4: a month as a CSS grid (CA01), Monday first. A marked day shows who is
 // away on hover AND on keyboard focus (CA03): the names are also in its label,
 // so a screen reader hears them without the tooltip.
-export function VacationCalendar({ month, absences }: VacationCalendarProps) {
-  const days = buildMonth(month, absences)
+export function VacationCalendar({ month, absences, holidays }: VacationCalendarProps) {
+  const days = buildMonth(month, absences, holidays)
   // Empty cells before day 1 so it falls under its weekday (Monday = column 1).
   const firstWeekday = (new Date(`${month}-01T00:00:00Z`).getUTCDay() + 6) % 7
 
@@ -76,11 +83,16 @@ export function VacationCalendar({ month, absences }: VacationCalendarProps) {
               className={[
                 'calendar-day',
                 day.isWeekend ? 'calendar-weekend' : '',
+                day.holiday !== null ? 'calendar-holiday' : '',
                 marked ? 'calendar-marked' : '',
               ].join(' ')}
               tabIndex={marked ? 0 : undefined}
               aria-label={
-                marked ? `${label}: ${day.names.join(', ')}` : `${label}: sin ausencias`
+                day.holiday !== null
+                  ? `${label}: festivo, ${day.holiday}`
+                  : marked
+                    ? `${label}: ${day.names.join(', ')}`
+                    : `${label}: sin ausencias`
               }
               aria-describedby={marked ? tooltipId : undefined}
               data-date={day.iso}
@@ -88,6 +100,11 @@ export function VacationCalendar({ month, absences }: VacationCalendarProps) {
               <span className="calendar-number" aria-hidden="true">
                 {day.dayOfMonth}
               </span>
+              {day.holiday !== null && (
+                <span className="calendar-holiday-name" aria-hidden="true">
+                  {day.holiday}
+                </span>
+              )}
               {marked && (
                 <>
                   <span className="calendar-count" aria-hidden="true">

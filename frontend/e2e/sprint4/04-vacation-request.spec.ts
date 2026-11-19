@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createEmployeeWithAccount, signIn } from '../api'
-import { addDays, businessDate, nextMonday } from '../data'
+import { COLOMBIAN_HOLIDAYS, addDays, businessDate, nextMonday } from '../data'
 
 // HU-4.1 (#27): an employee requests vacations from "Mis vacaciones".
 
@@ -54,7 +54,10 @@ test('an employee requests a week and it stays pending', async ({ page }) => {
 
 test('weekends inside the range are not counted', async ({ page }) => {
   await openMyVacations(page, 365)
-  const friday = addDays(nextMonday(), 4)
+  // A Friday whose next Monday is not a holiday either (HU-4.6).
+  let week = 1
+  while (COLOMBIAN_HOLIDAYS.has(addDays(nextMonday(week), 7))) week += 1
+  const friday = addDays(nextMonday(week), 4)
   await chooseDates(page, friday, addDays(friday, 3))
 
   await expect(page.locator('#vacation-business-days')).toContainText('Días hábiles solicitados: 2')

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { getHolidayMap } from '../api/holidays'
 import { getVacationCalendar } from '../api/vacations'
 import { IconAlert } from '../components/Icons'
 import { VacationCalendar } from '../components/VacationCalendar'
@@ -33,7 +34,7 @@ function formatTitle(month: string): string {
 type Load =
   | { phase: 'loading' }
   | { phase: 'error' }
-  | { phase: 'ready'; absences: CalendarAbsence[] }
+  | { phase: 'ready'; absences: CalendarAbsence[]; holidays: ReadonlyMap<string, string> }
 
 // HU-4.4: approved vacations of everybody, month by month, to plan operations.
 export function VacationCalendarPage() {
@@ -44,8 +45,11 @@ export function VacationCalendarPage() {
   useEffect(() => {
     const controller = new AbortController()
     setLoad({ phase: 'loading' })
-    getVacationCalendar(month, controller.signal)
-      .then((absences) => setLoad({ phase: 'ready', absences }))
+    Promise.all([
+      getVacationCalendar(month, controller.signal),
+      getHolidayMap([Number(month.slice(0, 4))], controller.signal),
+    ])
+      .then(([absences, holidays]) => setLoad({ phase: 'ready', absences, holidays }))
       .catch((error: unknown) => {
         if (!axios.isCancel(error)) setLoad({ phase: 'error' })
       })
@@ -99,9 +103,9 @@ export function VacationCalendarPage() {
         )}
         {load.phase === 'ready' && (
           <>
-            <VacationCalendar month={month} absences={load.absences} />
+            <VacationCalendar month={month} absences={load.absences} holidays={load.holidays} />
             <p className="field-help">
-              Solo vacaciones aprobadas y días hábiles. Pasa el cursor o usa Tab sobre un día marcado
+              Solo vacaciones aprobadas y días hábiles; los festivos aparecen en amarillo. Pasa el cursor o usa Tab sobre un día marcado
               para ver quién está ausente.
             </p>
 

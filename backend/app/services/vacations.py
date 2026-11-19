@@ -14,6 +14,7 @@ while a request is created or approved.
 """
 
 import uuid
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_DOWN, Decimal
@@ -40,9 +41,12 @@ class VacationBalance:
     requestable: Decimal  # available - pending (decision 3)
 
 
-def business_days(start: date, end: date) -> int:
-    """Monday to Friday between both dates, inclusive. Holidays count as work
-    days (decision 6: only weekends are left out, as CA02 of HU-4.1 says)."""
+def business_days(start: date, end: date, holidays: AbstractSet[date] = frozenset()) -> int:
+    """Monday to Friday between both dates, inclusive, minus the `holidays` that
+    fall on one of those days (HU-4.6; until then decision 6 counted them).
+
+    The function stays pure: the caller loads the holidays (holidays_between),
+    so it can be tested without a database."""
     if end < start:
         return 0
     full_weeks, extra = divmod((end - start).days + 1, 7)
@@ -50,7 +54,8 @@ def business_days(start: date, end: date) -> int:
     for offset in range(extra):
         if (start + timedelta(days=full_weeks * 7 + offset)).weekday() < 5:
             count += 1
-    return count
+    # A holiday on a Saturday or a Sunday was never counted in the first place.
+    return count - sum(1 for day in holidays if start <= day <= end and day.weekday() < 5)
 
 
 def accrued_days(contract_start: date, on: date) -> Decimal:

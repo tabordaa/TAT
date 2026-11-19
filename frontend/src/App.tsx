@@ -9,6 +9,7 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
 import { EmployeesPage } from './pages/EmployeesPage'
+import { HolidaysPage } from './pages/HolidaysPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyProfilePage } from './pages/MyProfilePage'
 import { MyVacationsPage } from './pages/MyVacationsPage'
@@ -41,6 +42,7 @@ export function App() {
               </Route>
               <Route element={<RoleRoute allowed={['ADMIN']} />}>
                 <Route path="/auditoria" element={<AuditPage />} />
+                <Route path="/festivos" element={<HolidaysPage />} />
               </Route>
             </Route>
           </Route>

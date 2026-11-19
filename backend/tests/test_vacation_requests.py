@@ -15,6 +15,7 @@ from app.models.audit_log import AuditLog
 from app.models.employee import Employee, EmployeeStatus
 from app.models.user import User, UserRole
 from app.models.vacation import VacationRequest, VacationStatus
+from app.services.holidays import colombian_holidays
 from tests.conftest import TEST_PASSWORD, make_user
 
 PayloadFactory = Callable[..., dict[str, Any]]
@@ -26,15 +27,34 @@ def _login(client: TestClient, user: User) -> None:
     assert response.status_code == 200, response.text
 
 
-def monday(weeks_ahead: int = 1) -> date:
-    """A Monday in the future, so weekday counts are predictable."""
+def _has_holiday(start: date, weeks: int) -> bool:
+    """Whether Monday to Friday of the `weeks` weeks from `start` hold a Colombian
+    holiday (the seed of the holidays table is calculated with the same function)."""
+    week_days = {start + timedelta(days=7 * w + d) for w in range(weeks) for d in range(5)}
+    years = {day.year for day in week_days}
+    return any(day in week_days for year in years for day, _ in colombian_holidays(year))
+
+
+def monday(weeks_ahead: int = 1, weeks: int = 1) -> date:
+    """The Monday that starts the `weeks_ahead`-th future block of `weeks` weeks
+    without holidays. Blocks never overlap, so week(1) and week(2) are always
+    different weeks, and every week counts 5 business days whatever today is."""
     now = today()
-    return now + timedelta(days=7 - now.weekday() + 7 * (weeks_ahead - 1))
+    candidate = now + timedelta(days=7 - now.weekday())
+    found = 0
+    while True:
+        if _has_holiday(candidate, weeks):
+            candidate += timedelta(days=7)
+            continue
+        found += 1
+        if found == weeks_ahead:
+            return candidate
+        candidate += timedelta(days=7 * weeks)
 
 
 def week(weeks_ahead: int = 1, weeks: int = 1) -> dict[str, str]:
     """Monday to Friday, `weeks` weeks long: 5 business days per week."""
-    start = monday(weeks_ahead)
+    start = monday(weeks_ahead, weeks)
     end = start + timedelta(days=7 * (weeks - 1) + 4)
     return {"start_date": start.isoformat(), "end_date": end.isoformat()}
 

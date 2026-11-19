@@ -27,6 +27,7 @@ from app.schemas.vacation import (
     VacationRequestResponse,
 )
 from app.services.audit import record_audit
+from app.services.holidays import holidays_between
 from app.services.vacations import (
     CANCELLED_BY_EMPLOYEE,
     available_days_for,
@@ -92,9 +93,11 @@ def create_my_vacation_request(
     if contract.end_date is not None and data.end_date > contract.end_date:
         raise rejected(422, "end_date", "Vacations cannot end after the contract")
 
-    days = business_days(data.start_date, data.end_date)  # CA02: weekends are left out
+    # CA02: weekends are left out, and holidays too (HU-4.6).
+    holidays = holidays_between(db, data.start_date, data.end_date)
+    days = business_days(data.start_date, data.end_date, holidays)
     if days == 0:
-        raise rejected(422, "end_date", "The range has no business days")
+        raise rejected(422, "end_date", "The range has no business days (only weekends or holidays)")
 
     if overlaps_existing(db, employee.id, data.start_date, data.end_date):
         raise rejected(409, "start_date", "The range overlaps another pending or approved request")
