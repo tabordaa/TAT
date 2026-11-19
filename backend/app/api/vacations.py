@@ -6,8 +6,8 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DbSession, EmployeeReader, HrStaff
@@ -20,6 +20,8 @@ from app.models.user import User
 from app.models.vacation import VacationRequest, VacationStatus
 from app.schemas.vacation import (
     CalendarAbsence,
+    PendingCount,
+    UnseenDecisions,
     VacationBalanceResponse,
     VacationInboxItem,
     VacationReject,
@@ -165,6 +167,18 @@ def list_vacation_requests(
     # One batch for every row: the per-row balance was an N+1 (3 queries per row).
     available = available_days_for(db, list({employee.id: employee for _, employee in rows}.values()))
     return [_inbox_item(vacation, employee, available[employee.id]) for vacation, employee in rows]
+
+
+@router.get("/vacation-requests/pending-count", response_model=PendingCount)
+def count_pending_requests(db: DbSession, current_user: HrStaff) -> PendingCount:
+    """HU-4.7 CA01: the number next to "Solicitudes de vacaciones" in the sidebar.
+    A COUNT in the database: the badge never loads the requests themselves."""
+    total = db.scalar(
+        select(func.count())
+        .select_from(VacationRequest)
+        .where(VacationRequest.status == VacationStatus.PENDIENTE)
+    )
+    return PendingCount(count=total or 0)
 
 
 def _lock_pending_request(
@@ -363,3 +377,34 @@ def cancel_my_vacation_request(
     db.commit()
     db.refresh(vacation)
     return vacation
+
+
+@router.get("/me/vacation-requests/unseen", response_model=UnseenDecisions)
+def my_unseen_decisions(current_user: CurrentUser, db: DbSession) -> UnseenDecisions:
+    """HU-4.7 CA02: my requests decided since my last visit to "Mis vacaciones".
+
+    Only decisions made by someone else are news: what I cancelled myself I
+    already know. Never visited means every past decision counts once."""
+    employee = own_employee(current_user, db)
+    query = select(VacationRequest.id).where(
+        VacationRequest.employee_id == employee.id,
+        VacationRequest.decided_at.is_not(None),
+        or_(
+            VacationRequest.decided_by_id.is_(None),
+            VacationRequest.decided_by_id != current_user.id,
+        ),
+    )
+    if current_user.vacations_seen_at is not None:
+        query = query.where(VacationRequest.decided_at > current_user.vacations_seen_at)
+    ids = list(db.scalars(query.order_by(VacationRequest.decided_at.desc())))
+    return UnseenDecisions(count=len(ids), request_ids=ids)
+
+
+@router.post("/me/vacation-requests/seen", status_code=status.HTTP_204_NO_CONTENT)
+def mark_my_decisions_seen(current_user: CurrentUser, db: DbSession) -> Response:
+    """HU-4.7 CA02: "Mis vacaciones" was opened; what was decided so far is no
+    longer news. Not audited: it changes nothing about the requests."""
+    own_employee(current_user, db)  # 404 for an account without a record, like the rest
+    current_user.vacations_seen_at = datetime.now(timezone.utc)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

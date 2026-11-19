@@ -57,6 +57,9 @@ class User(Base):
     # True while the account still uses a temporary password handed out by an
     # admin. HU 1.2 will force the change screen; here we only store the flag.
     must_change_password: Mapped[bool] = mapped_column(default=False, server_default="false")
+    # HU-4.7: when the person last opened "Mis vacaciones". Decisions after it
+    # are news. In the database, not the browser: it follows them across devices.
+    vacations_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

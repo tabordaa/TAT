@@ -90,3 +90,16 @@ class VacationReject(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     reason: str = Field(min_length=5, max_length=500)
+
+
+class PendingCount(BaseModel):
+    """HU-4.7 CA01: how many requests wait for HR."""
+
+    count: int
+
+
+class UnseenDecisions(BaseModel):
+    """HU-4.7 CA02: my requests decided by someone else since my last visit."""
+
+    count: int
+    request_ids: list[uuid.UUID]

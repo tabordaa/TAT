@@ -1,6 +1,7 @@
 import { api } from './client'
 import type {
   CalendarAbsence,
+  UnseenDecisions,
   VacationBalance,
   VacationInboxItem,
   VacationRequest,
@@ -88,4 +89,21 @@ export async function cancelMyVacationRequest(id: string): Promise<VacationReque
     `/me/vacation-requests/${encodeURIComponent(id)}/cancel`,
   )
   return data
+}
+
+/** GET /vacation-requests/pending-count (ADMIN and HR): the sidebar badge (HU-4.7 CA01). */
+export async function getPendingCount(signal?: AbortSignal): Promise<number> {
+  const { data } = await api.get<{ count: number }>('/vacation-requests/pending-count', { signal })
+  return data.count
+}
+
+/** GET /me/vacation-requests/unseen: my requests decided since my last visit (HU-4.7 CA02). */
+export async function getMyUnseenDecisions(signal?: AbortSignal): Promise<UnseenDecisions> {
+  const { data } = await api.get<UnseenDecisions>('/me/vacation-requests/unseen', { signal })
+  return data
+}
+
+/** POST /me/vacation-requests/seen: what was decided so far is no longer news. */
+export async function markMyDecisionsSeen(): Promise<void> {
+  await api.post('/me/vacation-requests/seen')
 }

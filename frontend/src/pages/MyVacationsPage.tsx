@@ -3,7 +3,9 @@ import axios from 'axios'
 import {
   cancelMyVacationRequest,
   createVacationRequest,
+  getMyUnseenDecisions,
   getMyVacationRequests,
+  markMyDecisionsSeen,
 } from '../api/vacations'
 import { IconAlert, IconCalendar, IconCheck } from '../components/Icons'
 import { VacationBalanceCard } from '../components/VacationBalanceCard'
@@ -15,6 +17,7 @@ import {
   type VacationStatus,
 } from '../types/vacation'
 import { businessDaysBetween, todayInBogota } from '../utils/businessDays'
+import { notifyVacationsChanged } from '../utils/vacationEvents'
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'UTC' })
 const instantFormatter = new Intl.DateTimeFormat('es-CO', {
@@ -105,6 +108,24 @@ export function MyVacationsPage() {
   // HU-4.5: the request whose cancellation is being confirmed in its own row.
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  // HU-4.7 CA02: requests decided since the last visit, highlighted once. Read
+  // first, then marked as seen: the next visit only shows newer decisions.
+  const [news, setNews] = useState<ReadonlySet<string>>(new Set())
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getMyUnseenDecisions(controller.signal)
+      .then(async (unseen) => {
+        setNews(new Set(unseen.request_ids))
+        if (unseen.count > 0) {
+          await markMyDecisionsSeen()
+          notifyVacationsChanged()
+        }
+      })
+      .catch(() => undefined) // without it the page still works, just without the notice
+    return () => controller.abort()
+  }, [])
+
   // HU-4.6: this year's and next year's holidays, so the count matches the server's.
   // If they fail to load the form still works: the server counts again on submit.
   const [holidays, setHolidays] = useState<ReadonlyMap<string, string>>(new Map())
@@ -178,6 +199,7 @@ export function MyVacationsPage() {
         text: `Solicitud del ${formatDate(request.start_date)} cancelada. Los días volvieron a tu saldo.`,
       })
       setVersion((count) => count + 1)
+      notifyVacationsChanged()
     } catch {
       setMessage({
         kind: 'error',
@@ -210,6 +232,20 @@ export function MyVacationsPage() {
       <header className="page-header">
         <h1 className="page-title">Mis vacaciones</h1>
       </header>
+
+      {news.size > 0 && (
+        <div className="alert alert-info" role="status">
+          <IconCheck size={20} />
+          <div className="alert-body">
+            <span>
+              {news.size === 1
+                ? 'Una de tus solicitudes se decidió desde tu última visita.'
+                : `${news.size} de tus solicitudes se decidieron desde tu última visita.`}{' '}
+              Están marcadas como «Nueva» en la lista.
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="detail-sections">
         <VacationBalanceCard employeeId={null} version={version} onLoaded={setBalance} />
@@ -338,6 +374,7 @@ export function MyVacationsPage() {
                         <span className={STATUS_BADGES[request.status]}>
                           {VACATION_STATUS_LABELS[request.status]}
                         </span>
+                        {news.has(request.id) && <span className="badge badge-warning">Nueva</span>}
                       </td>
                       <td>{instantFormatter.format(new Date(request.created_at))}</td>
                       <td>{request.reason ?? '—'}</td>

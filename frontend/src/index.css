@@ -1036,6 +1036,11 @@ a {
   background: #fff4e5;
   color: #92400e;
 }
+/* HU-4.7: a counter pushed to the end of a sidebar link. */
+.nav-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+}
 .btn-danger {
   background: var(--color-danger);
   border-color: var(--color-danger);

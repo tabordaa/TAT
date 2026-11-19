@@ -8,6 +8,7 @@ import {
 } from '../api/vacations'
 import { IconAlert, IconCalendar, IconCheck } from '../components/Icons'
 import type { VacationInboxItem } from '../types/vacation'
+import { notifyVacationsChanged } from '../utils/vacationEvents'
 
 // Same limits as the API (VacationReject).
 const REASON_MIN = 5
@@ -153,6 +154,7 @@ export function VacationInboxPage() {
 
   function decided(item: VacationInboxItem, verb: string) {
     setMessage({ kind: 'success', text: `Solicitud de ${item.employee_name} ${verb}.` })
+    notifyVacationsChanged() // HU-4.7: the sidebar counter goes down at once
     setReloadCount((count) => count + 1)
   }
 
