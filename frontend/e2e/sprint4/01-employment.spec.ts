@@ -58,10 +58,12 @@ test.describe('as HR', () => {
       const row = admin
         .getByRole('row')
         .filter({ hasText: 'Datos laborales actualizados' })
-        .filter({ hasText: '4750000' })
+        .filter({ hasText: '4.750.000' })
         .first()
       await expect(row).toContainText('andres.cardona@tat.example.com')
-      await expect(row).toContainText(`Salario: ${Number(person.salary).toFixed(2)} → 4750000.00`)
+      // Salaries are shown as COP; the currency sign is followed by a non-breaking space.
+      const oldSalary = String(Math.round(Number(person.salary))).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+      await expect(row).toContainText(new RegExp(`Salario:\\s*\\$\\s*${oldSalary.replaceAll('.', '\\.')}\\s*→\\s*\\$\\s*4\\.750\\.000`))
     } finally {
       await adminContext.close()
     }
