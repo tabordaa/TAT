@@ -120,7 +120,7 @@ export function EmploymentForm({ employee, onSaved }: EmploymentFormProps) {
 
   return (
     <form
-      className="card detail-section"
+      className="inline-edit-form"
       aria-labelledby="employment-form-title"
       onSubmit={(event) => void handleSubmit(event)}
       noValidate

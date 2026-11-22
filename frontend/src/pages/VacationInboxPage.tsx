@@ -239,7 +239,9 @@ export function VacationInboxPage() {
                       </td>
                       <td>{formatDate(item.start_date)}</td>
                       <td>{formatDate(item.end_date)}</td>
-                      <td className="cell-strong">{item.business_days}</td>
+                      <td>
+                        <span className="cell-strong">{item.business_days}</span>
+                      </td>
                       <td>
                         {daysFormatter.format(Number(item.available_days))}
                         {exceeds && <span className="badge badge-danger"> Insuficiente</span>}

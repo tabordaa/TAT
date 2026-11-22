@@ -35,6 +35,7 @@ export function ContactForm({
   const [notice, setNotice] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -69,6 +70,7 @@ export function ContactForm({
     const file = event.target.files?.[0]
     event.target.value = '' // lets the same file be chosen again after an error
     if (file === undefined) return
+    setSelectedFileName(file.name)
     setError(null)
     setNotice(null)
 
@@ -153,13 +155,24 @@ export function ContactForm({
           <div className="field-label-row">
             <label htmlFor="contact-photo">Foto de perfil</label>
           </div>
-          <input
-            id="contact-photo"
-            type="file"
-            accept={PHOTO_TYPES.join(',')}
-            disabled={isUploading}
-            onChange={(e) => void handlePhoto(e)}
-          />
+          <div className="file-input">
+            <div className="file-input-control">
+              <input
+                id="contact-photo"
+                className="file-input-native"
+                type="file"
+                accept={PHOTO_TYPES.join(',')}
+                disabled={isUploading}
+                onChange={(e) => void handlePhoto(e)}
+              />
+              <span className="btn btn-secondary file-input-btn" aria-hidden="true">
+                Elegir archivo
+              </span>
+            </div>
+            <span className="file-input-name muted">
+              {selectedFileName ?? 'Ningún archivo seleccionado'}
+            </span>
+          </div>
           <p className="field-help">{isUploading ? 'Subiendo foto…' : 'JPG, PNG o WEBP, hasta 2 MB.'}</p>
         </div>
       </div>

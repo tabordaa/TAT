@@ -13,7 +13,7 @@ function daysLabel(daysLeft: number): string {
 // HU-3.2 (merged with HU-6.2): active employees whose contract ends in under 30 days.
 export function ContractAlertsCard({ alerts }: { alerts: ContractAlert[] }) {
   return (
-    <section className="card contract-alerts" aria-labelledby="contract-alerts-title">
+    <section className="card table-card contract-alerts" aria-labelledby="contract-alerts-title">
       <div className="recent-header">
         <h2 id="contract-alerts-title">Contratos por vencer</h2>
       </div>

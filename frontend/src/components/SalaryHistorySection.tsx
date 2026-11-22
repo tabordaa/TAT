@@ -75,7 +75,9 @@ export function SalaryHistorySection({ employeeId, salary }: SalaryHistorySectio
                 <tr key={change.id}>
                   <td>{dateTimeFormatter.format(new Date(change.changed_at))}</td>
                   <td>{moneyFormatter.format(Number(change.old_salary))}</td>
-                  <td className="cell-strong">{moneyFormatter.format(Number(change.new_salary))}</td>
+                  <td>
+                    <span className="cell-strong">{moneyFormatter.format(Number(change.new_salary))}</span>
+                  </td>
                   <td>{change.changed_by_name}</td>
                 </tr>
               ))}

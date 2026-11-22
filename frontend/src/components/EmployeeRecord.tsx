@@ -96,7 +96,13 @@ export function PersonalDataSection({ employee }: { employee: Employee }) {
   )
 }
 
-export function EmploymentDataSection({ employee }: { employee: Employee }) {
+export function EmploymentDataSection({
+  employee,
+  children,
+}: {
+  employee: Employee
+  children?: ReactNode
+}) {
   return (
     <div className="card detail-section">
       <p className="section-kicker">DATOS LABORALES</p>
@@ -110,6 +116,7 @@ export function EmploymentDataSection({ employee }: { employee: Employee }) {
           {employee.end_date === null ? 'Sin fecha de fin' : formatDate(employee.end_date)}
         </DetailItem>
       </dl>
+      {children}
     </div>
   )
 }

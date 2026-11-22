@@ -42,7 +42,7 @@ export function RecentPeopleCard({
       {people.length === 0 ? (
         <p className="muted">{emptyText}</p>
       ) : (
-        <ul>
+        <ul className="recent-list">
           {people.map((person) => (
             <li key={person.id} className="recent-row">
               <span className={muted ? 'avatar avatar-muted' : 'avatar'} aria-hidden="true">

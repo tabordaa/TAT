@@ -228,7 +228,7 @@ export function MyVacationsPage() {
     errors[field] !== undefined ? `vacation-${field}-error` : undefined
 
   return (
-    <section>
+    <section className="page-readable">
       <header className="page-header">
         <h1 className="page-title">Mis vacaciones</h1>
       </header>
@@ -315,9 +315,13 @@ export function MyVacationsPage() {
           </div>
 
           {/* CA02: the count updates as the dates change; screen readers hear it too. */}
-          <p className="balance-headline" aria-live="polite" id="vacation-business-days">
+          <p
+            className={days === null ? 'field-help' : 'balance-headline'}
+            aria-live="polite"
+            id="vacation-business-days"
+          >
             {days === null ? (
-              <span className="muted">Elige las dos fechas para ver los días hábiles.</span>
+              'Elige las dos fechas para ver los días hábiles.'
             ) : (
               <>
                 Días hábiles solicitados: <strong>{days}</strong>
@@ -348,7 +352,10 @@ export function MyVacationsPage() {
             <p className="muted">No se pudieron cargar tus solicitudes.</p>
           )}
           {requests.phase === 'ready' && requests.requests.length === 0 && (
-            <p className="muted">Aún no has solicitado vacaciones.</p>
+            <div className="empty-state">
+              <IconCalendar size={32} />
+              <p>Aún no has solicitado vacaciones.</p>
+            </div>
           )}
           {requests.phase === 'ready' && requests.requests.length > 0 && (
             <div className="table-wrap">

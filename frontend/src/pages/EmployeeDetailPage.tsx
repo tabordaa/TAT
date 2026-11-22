@@ -108,15 +108,16 @@ export function EmployeeDetailPage() {
 
           <div className="detail-sections">
             <PersonalDataSection employee={employee} />
-            <EmploymentDataSection employee={employee} />
-            {canWrite && employee.status === 'ACTIVO' && (
-              <EmploymentForm
-                // A new key after each save starts the form from the saved values.
-                key={`${employee.position}|${employee.area}|${employee.salary}`}
-                employee={employee}
-                onSaved={() => setReloadCount((count) => count + 1)}
-              />
-            )}
+            <EmploymentDataSection employee={employee}>
+              {canWrite && employee.status === 'ACTIVO' && (
+                <EmploymentForm
+                  // A new key after each save starts the form from the saved values.
+                  key={`${employee.position}|${employee.area}|${employee.salary}`}
+                  employee={employee}
+                  onSaved={() => setReloadCount((count) => count + 1)}
+                />
+              )}
+            </EmploymentDataSection>
             <VacationBalanceCard employeeId={employee.id} version={employee.status} />
             <SalaryHistorySection employeeId={employee.id} salary={employee.salary} />
             <ContractSection
