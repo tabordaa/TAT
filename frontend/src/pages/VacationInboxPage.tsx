@@ -189,7 +189,7 @@ export function VacationInboxPage() {
         </div>
       )}
 
-      <div className="card">
+      <div className="card table-card">
         {load.phase === 'loading' && <p className="table-status muted">Cargando solicitudes…</p>}
         {load.phase === 'error' && (
           <div className="alert alert-error" role="alert">
@@ -224,7 +224,7 @@ export function VacationInboxPage() {
                   <th scope="col">Días hábiles</th>
                   <th scope="col">Disponibles</th>
                   <th scope="col">Solicitada el</th>
-                  <th scope="col">Acciones</th>
+                  <th scope="col" className="col-actions">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -245,7 +245,7 @@ export function VacationInboxPage() {
                         {exceeds && <span className="badge badge-danger"> Insuficiente</span>}
                       </td>
                       <td>{instantFormatter.format(new Date(item.created_at))}</td>
-                      <td>
+                      <td className="col-actions">
                         <div className="row-actions">
                           <button
                             type="button"
