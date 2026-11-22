@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { getMyUnseenDecisions, getPendingCount } from '../api/vacations'
 import { onVacationsChanged } from '../utils/vacationEvents'
@@ -8,9 +8,11 @@ import { BrandLogo } from '../components/BrandLogo'
 import {
   IconCalendar,
   IconChart,
+  IconClose,
   IconGrid,
   IconLogout,
   IconMegaphone,
+  IconMenu,
   IconShield,
   IconUser,
   IconUsers,
@@ -21,6 +23,8 @@ export function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const canReadEmployees = user !== null && user.role !== 'EMPLOYEE'
   const isHrStaff = user?.role === 'ADMIN' || user?.role === 'HR'
   const hasRecord = user?.employee_id != null
@@ -32,6 +36,22 @@ export function AppLayout() {
   const [refreshCount, setRefreshCount] = useState(0)
 
   useEffect(() => onVacationsChanged(() => setRefreshCount((count) => count + 1)), [])
+
+  useEffect(() => {
+    setIsMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!isMenuOpen) return
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isMenuOpen])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -58,6 +78,17 @@ export function AppLayout() {
     <div className="app-shell">
       <header className="app-header">
         <div className="app-header-left">
+          <button
+            ref={menuButtonRef}
+            type="button"
+            className="menu-toggle"
+            aria-controls="app-sidebar"
+            aria-expanded={isMenuOpen}
+            aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            onClick={() => setIsMenuOpen((open) => !open)}
+          >
+            {isMenuOpen ? <IconClose size={20} /> : <IconMenu size={20} />}
+          </button>
           <BrandLogo />
           <span className="app-title">TAT · Tracking and Talent</span>
         </div>
@@ -78,14 +109,36 @@ export function AppLayout() {
               disabled={isLoggingOut}
             >
               <IconLogout />
-              {isLoggingOut ? 'Cerrando…' : 'Cerrar sesión'}
+              <span className="btn-label">{isLoggingOut ? 'Cerrando…' : 'Cerrar sesión'}</span>
             </button>
           </div>
         )}
       </header>
 
       <div className="app-body">
-        <nav className="sidebar" aria-label="Navegación principal">
+        {isMenuOpen && (
+          <div
+            className="sidebar-backdrop"
+            aria-hidden="true"
+            onClick={() => setIsMenuOpen(false)}
+          />
+        )}
+        <nav
+          id="app-sidebar"
+          className={isMenuOpen ? 'sidebar is-open' : 'sidebar'}
+          aria-label="Navegación principal"
+        >
+          {user !== null && (
+            <div className="sidebar-user">
+              <span className="avatar" aria-hidden="true">
+                <IconUser size={16} />
+              </span>
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-name">{user.full_name}</span>
+                <span className="badge badge-success">{ROLE_LABELS[user.role]}</span>
+              </div>
+            </div>
+          )}
           <p className="sidebar-title">NAVEGACIÓN PRINCIPAL</p>
           {canReadEmployees && (
             <>
@@ -138,10 +191,12 @@ export function AppLayout() {
           {canReadEmployees && (
             <>
               <span className="nav-item nav-item-disabled" aria-disabled="true">
-                <IconMegaphone /> Novedades <span className="badge badge-muted">Próximamente</span>
+                <IconMegaphone /> Novedades{' '}
+                <span className="badge badge-muted nav-badge">Próximamente</span>
               </span>
               <span className="nav-item nav-item-disabled" aria-disabled="true">
-                <IconChart /> Reportes <span className="badge badge-muted">Próximamente</span>
+                <IconChart /> Reportes{' '}
+                <span className="badge badge-muted nav-badge">Próximamente</span>
               </span>
             </>
           )}
