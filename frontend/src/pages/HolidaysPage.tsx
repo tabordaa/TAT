@@ -88,7 +88,7 @@ export function HolidaysPage() {
   }
 
   return (
-    <section className="page-readable">
+    <section>
       <header className="page-header">
         <h1 className="page-title">Festivos</h1>
       </header>

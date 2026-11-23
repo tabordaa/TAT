@@ -60,10 +60,11 @@ function toMessage(error: unknown, fallback: string): string {
 interface AssignFormProps {
   employee: Employee
   onDone: () => void
+  onCancel: () => void
 }
 
 // HU-3.1. CA02 and CA03: the end date is required or disabled depending on the type.
-function AssignContractForm({ employee, onDone }: AssignFormProps) {
+function AssignContractForm({ employee, onDone, onCancel }: AssignFormProps) {
   const [contractType, setContractType] = useState<ContractType | ''>('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -104,7 +105,8 @@ function AssignContractForm({ employee, onDone }: AssignFormProps) {
   }
 
   return (
-    <form onSubmit={(e) => void handleSubmit(e)} noValidate>
+    <form className="inline-edit-form" onSubmit={(e) => void handleSubmit(e)} noValidate>
+      <h3 className="section-kicker">{isRehire ? 'REGISTRAR REINGRESO' : 'NUEVO CONTRATO'}</h3>
       {isRehire && (
         <p className="muted">
           Al guardar, el empleado vuelve a estado Activo. Su acceso al sistema no se reactiva: un
@@ -170,6 +172,9 @@ function AssignContractForm({ employee, onDone }: AssignFormProps) {
         </div>
       </div>
       <div className="form-actions">
+        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={isSaving}>
+          Cancelar
+        </button>
         <button type="submit" className="btn btn-primary" disabled={isSaving}>
           {isSaving ? 'Guardando…' : isRehire ? 'Registrar reingreso' : 'Asignar contrato'}
         </button>
@@ -372,20 +377,19 @@ export function ContractSection({ employee, canWrite, onChanged }: ContractSecti
         </div>
       )}
 
-      {canWrite && isAssigning && <AssignContractForm employee={employee} onDone={handleDone} />}
+      {/* While the form is open its own buttons are the only actions in the card. */}
+      {canWrite && isAssigning && (
+        <AssignContractForm
+          employee={employee}
+          onDone={handleDone}
+          onCancel={() => setIsAssigning(false)}
+        />
+      )}
 
-      {canWrite && (
+      {canWrite && !isAssigning && (
         <div className="form-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setIsAssigning((value) => !value)}
-          >
-            {isAssigning
-              ? 'Cancelar'
-              : employee.status === 'INACTIVO'
-                ? 'Registrar reingreso'
-                : 'Asignar nuevo contrato'}
+          <button type="button" className="btn btn-secondary" onClick={() => setIsAssigning(true)}>
+            {employee.status === 'INACTIVO' ? 'Registrar reingreso' : 'Asignar nuevo contrato'}
           </button>
           {employee.status === 'ACTIVO' && (
             <button type="button" className="btn btn-danger" onClick={() => setIsTerminating(true)}>

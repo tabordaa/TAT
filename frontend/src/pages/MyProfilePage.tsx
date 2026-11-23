@@ -43,7 +43,7 @@ export function MyProfilePage() {
   }, [reloadCount])
 
   return (
-    <section className="page-readable">
+    <section>
       {load.phase === 'loading' && (
         <p className="table-status muted" role="status">
           Cargando tu perfil…
