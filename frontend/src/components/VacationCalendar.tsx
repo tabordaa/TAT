@@ -1,6 +1,10 @@
+import { PersonAvatar } from './PersonAvatar'
 import type { CalendarAbsence } from '../types/vacation'
+import { todayInBogota } from '../utils/businessDays'
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const MAX_DESKTOP_AVATARS = 3
+const MAX_MOBILE_AVATARS = 2
 const dayLabel = new Intl.DateTimeFormat('es-CO', {
   weekday: 'long',
   day: 'numeric',
@@ -8,11 +12,18 @@ const dayLabel = new Intl.DateTimeFormat('es-CO', {
   timeZone: 'UTC',
 })
 
-interface Day {
+export interface DayPerson {
+  id: string
+  name: string
+  hasPhoto: boolean
+}
+
+export interface Day {
   iso: string // YYYY-MM-DD
   dayOfMonth: number
   isWeekend: boolean
   holiday: string | null // its name, when the day is a holiday (HU-4.6)
+  people: DayPerson[]
   names: string[]
 }
 
@@ -34,13 +45,23 @@ export function buildMonth(
     const weekday = date.getUTCDay()
     const isWeekend = weekday === 0 || weekday === 6
     const holiday = holidays.get(iso) ?? null
-    const names = isWeekend || holiday !== null
-      ? []
-      : absences
-          // ISO dates compare correctly as plain strings.
-          .filter((absence) => absence.start_date <= iso && iso <= absence.end_date)
-          .map((absence) => absence.employee_name)
-    days.push({ iso, dayOfMonth, isWeekend, holiday, names })
+    const people: DayPerson[] = []
+    if (!isWeekend && holiday === null) {
+      const seen = new Set<string>()
+      for (const absence of absences) {
+        // ISO dates compare correctly as plain strings.
+        if (absence.start_date <= iso && iso <= absence.end_date && !seen.has(absence.employee_id)) {
+          seen.add(absence.employee_id)
+          people.push({
+            id: absence.employee_id,
+            name: absence.employee_name,
+            hasPhoto: absence.has_photo,
+          })
+        }
+      }
+    }
+    const names = people.map((person) => person.name)
+    days.push({ iso, dayOfMonth, isWeekend, holiday, people, names })
   }
   return days
 }
@@ -65,6 +86,7 @@ export function VacationCalendar({
   onSelectDay,
 }: VacationCalendarProps) {
   const days = buildMonth(month, absences, holidays)
+  const today = todayInBogota()
   // Empty cells before day 1 so it falls under its weekday (Monday = column 1).
   const firstWeekday = (new Date(`${month}-01T00:00:00Z`).getUTCDay() + 6) % 7
 
@@ -82,7 +104,8 @@ export function VacationCalendar({
           <div key={`blank-${index}`} className="calendar-blank" aria-hidden="true" />
         ))}
         {days.map((day) => {
-          const marked = day.names.length > 0
+          const marked = day.people.length > 0
+          const isToday = day.iso === today
           const label = dayLabel.format(new Date(`${day.iso}T00:00:00Z`))
           const tooltipId = `absence-${day.iso}`
           return (
@@ -94,9 +117,13 @@ export function VacationCalendar({
                 day.isWeekend ? 'calendar-weekend' : '',
                 day.holiday !== null ? 'calendar-holiday' : '',
                 marked ? 'calendar-marked' : '',
+                isToday ? 'calendar-today' : '',
                 day.iso === selectedDay ? 'calendar-selected' : '',
-              ].join(' ')}
+              ]
+                .filter(Boolean)
+                .join(' ')}
               tabIndex={marked ? 0 : undefined}
+              aria-current={isToday ? 'date' : undefined}
               aria-selected={marked && onSelectDay !== undefined ? day.iso === selectedDay : undefined}
               onClick={marked && onSelectDay !== undefined ? () => onSelectDay(day.iso) : undefined}
               onKeyDown={
@@ -129,9 +156,28 @@ export function VacationCalendar({
               )}
               {marked && (
                 <>
-                  <span className="calendar-count" aria-hidden="true">
-                    {day.names.length === 1 ? '1 ausente' : `${day.names.length} ausentes`}
-                  </span>
+                  <div className="calendar-avatars" aria-hidden="true">
+                    {day.people.slice(0, MAX_DESKTOP_AVATARS).map((person, index) => (
+                      <PersonAvatar
+                        key={person.id}
+                        id={person.id}
+                        name={person.name}
+                        hasPhoto={person.hasPhoto}
+                        size="xs"
+                        className={index >= MAX_MOBILE_AVATARS ? 'calendar-avatar-desktop-only' : undefined}
+                      />
+                    ))}
+                    {day.people.length > MAX_DESKTOP_AVATARS && (
+                      <span className="calendar-avatar-more calendar-avatar-more-desktop">
+                        +{day.people.length - MAX_DESKTOP_AVATARS}
+                      </span>
+                    )}
+                    {day.people.length > MAX_MOBILE_AVATARS && (
+                      <span className="calendar-avatar-more calendar-avatar-more-mobile">
+                        +{day.people.length - MAX_MOBILE_AVATARS}
+                      </span>
+                    )}
+                  </div>
                   <span className="calendar-tooltip" role="tooltip" id={tooltipId}>
                     {day.names.join(', ')}
                   </span>

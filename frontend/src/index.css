@@ -1561,3 +1561,221 @@ a.nav-item .nav-badge {
     white-space: nowrap;
   }
 }
+
+/* ---------- Calendario de ausencias ---------- */
+.calendar-today {
+  border-color: var(--color-primary);
+}
+.calendar-today .calendar-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.calendar-avatars {
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+}
+.calendar-avatars .avatar,
+.calendar-avatar-more {
+  border: 2px solid var(--color-surface);
+}
+.calendar-avatars > * + * {
+  margin-left: -7px;
+}
+.calendar-avatar-more {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 3px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: var(--color-text);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.calendar-avatar-more-mobile {
+  display: none;
+}
+.calendar-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 0.75rem;
+}
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+.calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.calendar-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: 1px solid var(--color-border);
+}
+.calendar-swatch-holiday {
+  background: #fdf3e1;
+  border-color: #f0c674;
+}
+.calendar-swatch-weekend {
+  background: #f3f5f8;
+  border-color: var(--color-border);
+}
+.calendar-swatch-marked {
+  background: #e8f0fb;
+  border-color: var(--color-primary);
+}
+.calendar-swatch-today {
+  border-radius: 50%;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.absence-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+.absence-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.absence-card-highlighted {
+  border-color: var(--color-primary);
+  background: #f0f6ff;
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+.absence-card-person {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.absence-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.absence-card-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text);
+  overflow-wrap: break-word;
+}
+.absence-card-area {
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--color-muted);
+}
+.absence-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.82rem;
+}
+.absence-card-highlighted .absence-card-meta {
+  border-top-color: rgba(31, 95, 191, 0.2);
+}
+.absence-card-dates {
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.absence-card-days {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.absence-card-highlighted .absence-card-days {
+  background: var(--color-surface);
+}
+.absence-empty {
+  padding: 2rem 1rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .calendar-row,
+  .calendar-days {
+    gap: 0.15rem;
+  }
+  .calendar-day {
+    padding: 0.25rem 0.125rem;
+  }
+  .calendar-today .calendar-number {
+    width: 1.3rem;
+    height: 1.3rem;
+    font-size: 0.75rem;
+  }
+  /* Show at most two avatars plus "+N" on narrow screens so cells stay within 360px. */
+  .calendar-avatar-desktop-only,
+  .calendar-avatar-more-desktop {
+    display: none;
+  }
+  .calendar-avatar-more-mobile {
+    display: inline-grid;
+  }
+  .calendar-avatars .avatar-xs,
+  .calendar-avatar-more {
+    width: 17px;
+    min-width: 17px;
+    height: 17px;
+    font-size: 0.48rem;
+  }
+  .calendar-avatars > * + * {
+    margin-left: -8px;
+  }
+  .calendar-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .absence-card {
+    transition: none;
+  }
+}
