@@ -3,6 +3,7 @@ import axios from 'axios'
 import { updateEmployment } from '../api/employees'
 import type { Employee, EmploymentUpdatePayload } from '../types/employee'
 import { IconAlert, IconCheck } from './Icons'
+import { useToast } from './Toast'
 
 // Same limits as the API (EmploymentUpdate) and the registration form.
 const MAX_TEXT_LENGTH = 120
@@ -57,6 +58,7 @@ interface EmploymentFormProps {
 
 // HU-2.4: rendered only for ADMIN and HR on an active employee. The API enforces the same.
 export function EmploymentForm({ employee, onSaved }: EmploymentFormProps) {
+  const { showToast } = useToast()
   const initial: Values = {
     position: employee.position,
     area: employee.area,
@@ -97,6 +99,7 @@ export function EmploymentForm({ employee, onSaved }: EmploymentFormProps) {
     try {
       await updateEmployment(employee.id, payload)
       setIsOpen(false)
+      showToast('Datos laborales guardados.')
       onSaved()
     } catch (error) {
       setMessage({ kind: 'error', text: toMessage(error) })

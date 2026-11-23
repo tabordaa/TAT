@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { HomeRedirect } from './auth/HomeRedirect'
 import { CHANGE_PASSWORD_PATH, ProtectedRoute } from './auth/ProtectedRoute'
 import { RoleRoute } from './auth/RoleRoute'
+import { ToastProvider } from './components/Toast'
 import { AppLayout } from './layouts/AppLayout'
 import { AuditPage } from './pages/AuditPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
@@ -21,34 +22,36 @@ export function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+        <ToastProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<HomeRedirect />} />
-            <Route path={CHANGE_PASSWORD_PATH} element={<ChangePasswordPage />} />
-            <Route element={<AppLayout />}>
-              <Route path="/mi-perfil" element={<MyProfilePage />} />
-              <Route path="/mis-vacaciones" element={<MyVacationsPage />} />
-              <Route element={<RoleRoute allowed={['ADMIN', 'HR', 'MANAGER']} />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/empleados" element={<EmployeesPage />} />
-                <Route path="/empleados/:employeeId" element={<EmployeeDetailPage />} />
-                <Route path="/vacaciones/calendario" element={<VacationCalendarPage />} />
-              </Route>
-              <Route element={<RoleRoute allowed={['ADMIN', 'HR']} />}>
-                <Route path="/empleados/nuevo" element={<RegisterEmployeePage />} />
-                <Route path="/vacaciones/solicitudes" element={<VacationInboxPage />} />
-              </Route>
-              <Route element={<RoleRoute allowed={['ADMIN']} />}>
-                <Route path="/auditoria" element={<AuditPage />} />
-                <Route path="/festivos" element={<HolidaysPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<HomeRedirect />} />
+              <Route path={CHANGE_PASSWORD_PATH} element={<ChangePasswordPage />} />
+              <Route element={<AppLayout />}>
+                <Route path="/mi-perfil" element={<MyProfilePage />} />
+                <Route path="/mis-vacaciones" element={<MyVacationsPage />} />
+                <Route element={<RoleRoute allowed={['ADMIN', 'HR', 'MANAGER']} />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/empleados" element={<EmployeesPage />} />
+                  <Route path="/empleados/:employeeId" element={<EmployeeDetailPage />} />
+                  <Route path="/vacaciones/calendario" element={<VacationCalendarPage />} />
+                </Route>
+                <Route element={<RoleRoute allowed={['ADMIN', 'HR']} />}>
+                  <Route path="/empleados/nuevo" element={<RegisterEmployeePage />} />
+                  <Route path="/vacaciones/solicitudes" element={<VacationInboxPage />} />
+                </Route>
+                <Route element={<RoleRoute allowed={['ADMIN']} />}>
+                  <Route path="/auditoria" element={<AuditPage />} />
+                  <Route path="/festivos" element={<HolidaysPage />} />
+                </Route>
               </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   )

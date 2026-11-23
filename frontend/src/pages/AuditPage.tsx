@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { listAuditLogs } from '../api/audit'
 import { IconAlert, IconShield } from '../components/Icons'
+import { SkeletonTable } from '../components/Skeleton'
 import type { AuditLogItem, AuditLogListResponse } from '../types/audit'
 import { ROLE_LABELS, type UserRole } from '../types/auth'
 import { CONTRACT_TYPES, type ContractType, type EmployeeStatus } from '../types/employee'
@@ -185,9 +186,7 @@ export function AuditPage() {
         )}
 
         {load.phase === 'loading' && (
-          <p className="table-status muted" role="status">
-            Cargando historial…
-          </p>
+          <SkeletonTable rows={8} columns={5} label="Cargando historial…" />
         )}
 
         {data !== null && data.items.length === 0 && (

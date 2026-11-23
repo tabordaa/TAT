@@ -8,6 +8,8 @@ import {
   markMyDecisionsSeen,
 } from '../api/vacations'
 import { IconAlert, IconCalendar, IconCheck } from '../components/Icons'
+import { SkeletonTable } from '../components/Skeleton'
+import { useToast } from '../components/Toast'
 import { VacationBalanceCard } from '../components/VacationBalanceCard'
 import { getHolidayMap } from '../api/holidays'
 import {
@@ -97,9 +99,10 @@ function serverErrors(error: unknown): { errors: Errors; message: string | null 
 // HU-4.1: the employee picks a range in a calendar (CA01), sees its business days
 // (CA02) and sends it; it stays PENDIENTE (CA04). The API enforces CA03.
 export function MyVacationsPage() {
+  const { showToast } = useToast()
   const [values, setValues] = useState<Values>({ start: '', end: '' })
   const [errors, setErrors] = useState<Errors>({})
-  const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [balance, setBalance] = useState<VacationBalance | null>(null)
   const [requests, setRequests] = useState<Requests>({ phase: 'loading' })
@@ -163,7 +166,7 @@ export function MyVacationsPage() {
   function change(field: keyof Values, value: string) {
     setValues((previous) => ({ ...previous, [field]: value }))
     setErrors((previous) => ({ ...previous, [field]: undefined }))
-    setMessage(null)
+    setError(null)
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -176,15 +179,15 @@ export function MyVacationsPage() {
     try {
       const created = await createVacationRequest({ start_date: values.start, end_date: values.end })
       setValues({ start: '', end: '' })
-      setMessage({
-        kind: 'success',
-        text: `Solicitud enviada por ${created.business_days} días hábiles. Queda pendiente de aprobación.`,
-      })
+      setError(null)
+      showToast(
+        `Solicitud enviada por ${created.business_days} días hábiles. Queda pendiente de aprobación.`,
+      )
       setVersion((count) => count + 1)
-    } catch (error) {
-      const result = serverErrors(error)
+    } catch (reason) {
+      const result = serverErrors(reason)
       setErrors(result.errors)
-      if (result.message !== null) setMessage({ kind: 'error', text: result.message })
+      if (result.message !== null) setError(result.message)
     } finally {
       setIsSending(false)
     }
@@ -194,17 +197,16 @@ export function MyVacationsPage() {
     setCancellingId(request.id)
     try {
       await cancelMyVacationRequest(request.id)
-      setMessage({
-        kind: 'success',
-        text: `Solicitud del ${formatDate(request.start_date)} cancelada. Los días volvieron a tu saldo.`,
-      })
+      setError(null)
+      showToast(
+        `Solicitud del ${formatDate(request.start_date)} cancelada. Los días volvieron a tu saldo.`,
+      )
       setVersion((count) => count + 1)
       notifyVacationsChanged()
     } catch {
-      setMessage({
-        kind: 'error',
-        text: 'No se pudo cancelar la solicitud. Puede que ya haya empezado o que Recursos Humanos la haya decidido.',
-      })
+      setError(
+        'No se pudo cancelar la solicitud. Puede que ya haya empezado o que Recursos Humanos la haya decidido.',
+      )
       setVersion((count) => count + 1)
     } finally {
       setConfirmingId(null)
@@ -260,14 +262,11 @@ export function MyVacationsPage() {
             SOLICITAR VACACIONES
           </h2>
 
-          {message !== null && (
-            <div
-              className={message.kind === 'error' ? 'alert alert-error' : 'alert alert-success'}
-              role={message.kind === 'error' ? 'alert' : 'status'}
-            >
-              {message.kind === 'error' ? <IconAlert size={20} /> : <IconCheck size={20} />}
+          {error !== null && (
+            <div className="alert alert-error" role="alert">
+              <IconAlert size={20} />
               <div className="alert-body">
-                <span>{message.text}</span>
+                <span>{error}</span>
               </div>
             </div>
           )}
@@ -347,7 +346,9 @@ export function MyVacationsPage() {
           <h2 id="my-requests-title" className="section-kicker">
             MIS SOLICITUDES
           </h2>
-          {requests.phase === 'loading' && <p className="muted">Cargando solicitudes…</p>}
+          {requests.phase === 'loading' && (
+            <SkeletonTable rows={3} columns={7} label="Cargando solicitudes…" />
+          )}
           {requests.phase === 'error' && (
             <p className="muted">No se pudieron cargar tus solicitudes.</p>
           )}

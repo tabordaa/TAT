@@ -6,7 +6,9 @@ import {
   getVacationInbox,
   rejectVacationRequest,
 } from '../api/vacations'
-import { IconAlert, IconCalendar, IconCheck } from '../components/Icons'
+import { IconAlert, IconCalendar } from '../components/Icons'
+import { SkeletonTable } from '../components/Skeleton'
+import { useToast } from '../components/Toast'
 import type { VacationInboxItem } from '../types/vacation'
 import { notifyVacationsChanged } from '../utils/vacationEvents'
 
@@ -135,36 +137,38 @@ function RejectModal({ item, onCancel, onDone }: RejectModalProps) {
 // HU-4.2: HR's inbox of pending requests (CA01), with approve (CA02) and reject (CA03).
 // Only ADMIN and HR reach this page (RoleRoute); the API checks the same.
 export function VacationInboxPage() {
+  const { showToast } = useToast()
   const [load, setLoad] = useState<Load>({ phase: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
   const [rejecting, setRejecting] = useState<VacationInboxItem | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     setLoad({ phase: 'loading' })
     getVacationInbox('PENDIENTE', controller.signal)
       .then((items) => setLoad({ phase: 'ready', items }))
-      .catch((error: unknown) => {
-        if (!axios.isCancel(error)) setLoad({ phase: 'error' })
+      .catch((reason: unknown) => {
+        if (!axios.isCancel(reason)) setLoad({ phase: 'error' })
       })
     return () => controller.abort()
   }, [reloadCount])
 
   function decided(item: VacationInboxItem, verb: string) {
-    setMessage({ kind: 'success', text: `Solicitud de ${item.employee_name} ${verb}.` })
+    setError(null)
+    showToast(`Solicitud de ${item.employee_name} ${verb}.`)
     notifyVacationsChanged() // HU-4.7: the sidebar counter goes down at once
     setReloadCount((count) => count + 1)
   }
 
   async function approve(item: VacationInboxItem) {
     setBusyId(item.id)
-    setMessage(null)
+    setError(null)
     try {
       decided(await approveVacationRequest(item.id), 'aprobada')
-    } catch (error) {
-      setMessage({ kind: 'error', text: toMessage(error) })
+    } catch (reason) {
+      setError(toMessage(reason))
       setReloadCount((count) => count + 1)
     } finally {
       setBusyId(null)
@@ -177,20 +181,19 @@ export function VacationInboxPage() {
         <h1 className="page-title">Solicitudes de vacaciones</h1>
       </header>
 
-      {message !== null && (
-        <div
-          className={message.kind === 'error' ? 'alert alert-error' : 'alert alert-success'}
-          role={message.kind === 'error' ? 'alert' : 'status'}
-        >
-          {message.kind === 'error' ? <IconAlert size={20} /> : <IconCheck size={20} />}
+      {error !== null && (
+        <div className="alert alert-error" role="alert">
+          <IconAlert size={20} />
           <div className="alert-body">
-            <span>{message.text}</span>
+            <span>{error}</span>
           </div>
         </div>
       )}
 
       <div className="card table-card">
-        {load.phase === 'loading' && <p className="table-status muted">Cargando solicitudes…</p>}
+        {load.phase === 'loading' && (
+          <SkeletonTable rows={4} columns={7} label="Cargando solicitudes…" />
+        )}
         {load.phase === 'error' && (
           <div className="alert alert-error" role="alert">
             <IconAlert size={20} />
@@ -264,7 +267,7 @@ export function VacationInboxPage() {
                             disabled={busyId !== null}
                             aria-label={`Rechazar solicitud de ${item.employee_name}`}
                             onClick={() => {
-                              setMessage(null)
+                              setError(null)
                               setRejecting(item)
                             }}
                           >

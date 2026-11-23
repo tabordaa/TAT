@@ -20,7 +20,8 @@ test('a MANAGER sees the directory, the dashboard and records, without any write
 
   await page.goto(`/empleados/${id}`)
   await expect(page.getByRole('heading', { level: 1, name: fullName(person) })).toBeVisible()
-  await expect(page.getByText('CONTRATOS')).toBeVisible()
+  // Exact: while loading, the skeleton keeps a hidden "Cargando contratos…" for screen readers.
+  await expect(page.getByText('CONTRATOS', { exact: true })).toBeVisible()
   for (const action of ['Asignar nuevo contrato', 'Finalizar contrato', 'Restablecer contraseña']) {
     await expect(page.getByRole('button', { name: action })).toHaveCount(0)
   }
