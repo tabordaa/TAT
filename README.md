@@ -8,8 +8,8 @@ Proyecto final de **Ingeniería de Software II** — Institución Universitaria 
 |---|---|
 | **Aplicación** | https://tat-woad.vercel.app |
 | **Repositorio** | https://github.com/tabordaa/TAT |
-| **Gestión del proyecto** | Azure DevOps, proyecto `TAT` (Scrum, 5 sprints) |
-| **Documentación** | [Arquitectura](docs/ARQUITECTURA.md) · [Manual de usuario](docs/MANUAL_USUARIO.md) · [Despliegue](docs/DEPLOYMENT.md) · [Pruebas E2E](docs/E2E.md) |
+| **Gestión del proyecto** | Azure DevOps, proyecto `TAT` (Scrum, 5 sprints) · [backlog, historias, tareas y horas](docs/GESTION_DEL_PROYECTO.md) |
+| **Documentación** | [Arquitectura](docs/ARQUITECTURA.md) · [Manual de usuario](docs/MANUAL_USUARIO.md) · [Gestión del proyecto](docs/GESTION_DEL_PROYECTO.md) · [Despliegue](docs/DEPLOYMENT.md) · [Pruebas E2E](docs/E2E.md) |
 
 ![Panel principal](docs/img/02-panel.png)
 
