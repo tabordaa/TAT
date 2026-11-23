@@ -74,6 +74,7 @@ def test_an_approved_vacation_appears_with_the_employee_name(
             "area": employee["area"],
             "start_date": "2031-03-10",
             "end_date": "2031-03-14",
+            "has_photo": False,
         }
     ]
 

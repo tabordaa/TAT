@@ -163,6 +163,7 @@ class EmployeeListItem(BaseModel):
     area: str
     start_date: date
     status: EmployeeStatus
+    has_photo: bool  # the photo itself is served by GET /employees/{id}/photo
 
 
 class EmployeeListResponse(BaseModel):
@@ -249,6 +250,7 @@ class PersonSummary(BaseModel):
     area: str
     # Hires: start date. Departures: contract end date (None if it was never set).
     event_date: date | None
+    has_photo: bool
 
 
 class EmployeeOverview(BaseModel):

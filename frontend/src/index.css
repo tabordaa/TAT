@@ -934,6 +934,19 @@ a.nav-item .nav-badge {
   font-weight: 700;
   flex-shrink: 0;
 }
+/* PersonAvatar sizes; md is the base .avatar (36px). */
+.avatar-xs {
+  width: 24px;
+  height: 24px;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
 .detail-header {
   display: flex;
   align-items: center;

@@ -334,6 +334,7 @@ def _summary(employee: Employee, event_date: date | None) -> PersonSummary:
         position=employee.position,
         area=employee.area,
         event_date=event_date,
+        has_photo=employee.has_photo,
     )
 
 

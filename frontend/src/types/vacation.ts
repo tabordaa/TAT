@@ -49,6 +49,7 @@ export interface CalendarAbsence {
   area: string
   start_date: string
   end_date: string
+  has_photo: boolean
 }
 
 /** GET /vacation-requests (HU-4.2): a request in HR's inbox. */

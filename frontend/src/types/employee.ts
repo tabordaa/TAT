@@ -168,6 +168,7 @@ export interface PersonSummary {
   area: string
   /** Hires: start date. Departures: contract end date, null if it was never set. */
   event_date: string | null
+  has_photo: boolean
 }
 
 /** Response of GET /employees/overview (mirrors backend EmployeeOverview). */
@@ -197,6 +198,7 @@ export interface EmployeeListItem {
   area: string
   start_date: string
   status: EmployeeStatus
+  has_photo: boolean
 }
 
 /** Response of GET /employees (mirrors backend EmployeeListResponse). */
