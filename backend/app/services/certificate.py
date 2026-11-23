@@ -64,6 +64,11 @@ def format_salary(amount: Decimal) -> str:
     return f"$ {grouped},{cents}"
 
 
+def _mid_sentence(label: str) -> str:
+    """'Cédula de ciudadanía (CC)' -> 'cédula de ciudadanía (CC)': only the first letter changes."""
+    return label[:1].lower() + label[1:]
+
+
 def _latin1(text: str) -> str:
     # Core Helvetica supports latin-1 (Spanish accents included); replace any
     # unexpected symbol so a stray character in a record never fails with 500.
@@ -125,13 +130,15 @@ def build_certificate(
     )
 
     # Certification body.
-    full_name = f"{employee.first_names} {employee.last_names}"
-    document_label = DOCUMENT_TYPE_LABELS.get(
-        employee.document_type, employee.document_type.value
+    # Formal certificates write the holder's name in capitals.
+    full_name = f"{employee.first_names} {employee.last_names}".upper()
+    # The labels start with a capital for the UI; mid-sentence they read in lower case.
+    document_label = _mid_sentence(
+        DOCUMENT_TYPE_LABELS.get(employee.document_type, employee.document_type.value)
     )
     contract_label = CONTRACT_TYPE_LABELS.get(
         employee.contract_type, employee.contract_type.value
-    )
+    ).lower()
     body = (
         f"La {settings.certificate_signer} de {settings.company_name} certifica que "
         f"{full_name}, identificado(a) con {document_label} No. {employee.document_number}, "

@@ -127,11 +127,11 @@ def test_downloads_pdf_with_expected_headers_and_content(
     assert settings.company_name in text
     assert settings.company_nit in text
     assert "CERTIFICADO LABORAL" in text
-    assert "María José Gómez Ríos" in text
-    assert "Cédula de ciudadanía (CC)" in text
+    assert "MARÍA JOSÉ GÓMEZ RÍOS" in text
+    assert "cédula de ciudadanía (CC)" in text
     assert employee_record["document_number"] in text
     assert "10 de marzo de 2025" in text
-    assert "Término indefinido" in text
+    assert "contrato a término indefinido" in text
     assert "Ingeniera de soporte" in text
     assert "Tecnología" in text
     assert format_long_date(today()) in text
