@@ -3,10 +3,11 @@ import axios from 'axios'
 import { getAreas } from '../api/employees'
 import { getHolidayMap } from '../api/holidays'
 import { getVacationCalendar } from '../api/vacations'
-import { IconAlert } from '../components/Icons'
+import { IconAlert, IconCalendar } from '../components/Icons'
+import { PersonAvatar } from '../components/PersonAvatar'
 import { VacationCalendar, buildMonth } from '../components/VacationCalendar'
 import type { CalendarAbsence } from '../types/vacation'
-import { todayInBogota } from '../utils/businessDays'
+import { businessDaysBetween, todayInBogota } from '../utils/businessDays'
 
 const monthTitle = new Intl.DateTimeFormat('es-CO', {
   month: 'long',
@@ -18,6 +19,22 @@ const shortDate = new Intl.DateTimeFormat('es-CO', {
   month: 'short',
   timeZone: 'UTC',
 })
+
+function shortDateParts(iso: string): { day: string; month: string } {
+  const parts = shortDate.formatToParts(new Date(`${iso}T00:00:00Z`))
+  const day = parts.find((part) => part.type === 'day')?.value ?? ''
+  const month = (parts.find((part) => part.type === 'month')?.value ?? '').replace(/\.$/, '')
+  return { day, month }
+}
+
+/** Short span like "23 → 27 nov" or "28 nov → 3 dic". */
+function formatShortRange(start: string, end: string): string {
+  const from = shortDateParts(start)
+  if (start === end) return `${from.day} ${from.month}`
+  const to = shortDateParts(end)
+  if (start.slice(0, 7) === end.slice(0, 7)) return `${from.day} → ${to.day} ${to.month}`
+  return `${from.day} ${from.month} → ${to.day} ${to.month}`
+}
 
 /** "2026-11" moved by `delta` months. */
 function shiftMonth(month: string, delta: number): string {
@@ -86,6 +103,21 @@ export function VacationCalendarPage() {
   }, [month, area, reloadCount])
 
   const title = formatTitle(month)
+  const monthDays =
+    load.phase === 'ready' ? buildMonth(month, load.absences, load.holidays) : []
+  const holidaySet =
+    load.phase === 'ready' ? new Set(load.holidays.keys()) : new Set<string>()
+  const selectedDayInfo =
+    selectedDay !== null ? (monthDays.find((day) => day.iso === selectedDay) ?? null) : null
+  const selectedPeopleIds = new Set(selectedDayInfo?.people.map((person) => person.id) ?? [])
+  const sortedAbsences =
+    load.phase === 'ready'
+      ? [...load.absences].sort((a, b) => {
+          const byStart = a.start_date.localeCompare(b.start_date)
+          if (byStart !== 0) return byStart
+          return a.employee_name.localeCompare(b.employee_name, 'es-CO')
+        })
+      : []
 
   return (
     <section>
@@ -159,34 +191,84 @@ export function VacationCalendarPage() {
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
             />
+            <div className="calendar-footer">
+              <div className="calendar-legend" role="group" aria-label="Leyenda del calendario">
+                <span className="calendar-legend-item">
+                  <span className="calendar-swatch calendar-swatch-holiday" aria-hidden="true" />
+                  Festivo
+                </span>
+                <span className="calendar-legend-item">
+                  <span className="calendar-swatch calendar-swatch-weekend" aria-hidden="true" />
+                  Fin de semana
+                </span>
+                <span className="calendar-legend-item">
+                  <span className="calendar-swatch calendar-swatch-marked" aria-hidden="true" />
+                  Con ausencias
+                </span>
+                <span className="calendar-legend-item">
+                  <span className="calendar-swatch calendar-swatch-today" aria-hidden="true" />
+                  Hoy
+                </span>
+              </div>
+              <p className="field-help">Haz clic en un día para ver quién está ausente.</p>
+            </div>
             {selectedDay !== null && (
               <p className="alert alert-info" role="status">
-                {absentSentence(
-                  buildMonth(month, load.absences, load.holidays).find(
-                    (day) => day.iso === selectedDay,
-                  )?.names.length ?? 0,
-                  area,
-                  selectedDay,
-                )}
+                {absentSentence(selectedDayInfo?.people.length ?? 0, area, selectedDay)}
               </p>
             )}
-            <p className="field-help">
-              Solo vacaciones aprobadas y días hábiles; los festivos aparecen en amarillo. Pasa el cursor o usa Tab sobre un día marcado
-              para ver quién está ausente; haz clic (o Enter) para ver cuántos son.
-            </p>
 
             <h3 className="section-kicker">AUSENCIAS DEL MES</h3>
-            {load.absences.length === 0 ? (
-              <p className="muted">No hay vacaciones aprobadas en {title.toLowerCase()}.</p>
+            {sortedAbsences.length === 0 ? (
+              <div className="empty-state absence-empty">
+                <IconCalendar size={32} />
+                <p className="muted">No hay vacaciones aprobadas en {title.toLowerCase()}.</p>
+              </div>
             ) : (
-              <ul className="absence-list" aria-label={`Ausencias de ${title}`}>
-                {load.absences.map((absence) => (
-                  <li key={absence.request_id}>
-                    <strong>{absence.employee_name}</strong>: del{' '}
-                    {shortDate.format(new Date(`${absence.start_date}T00:00:00Z`))} al{' '}
-                    {shortDate.format(new Date(`${absence.end_date}T00:00:00Z`))}
-                  </li>
-                ))}
+              <ul className="absence-cards" aria-label={`Ausencias de ${title}`}>
+                {sortedAbsences.map((absence) => {
+                  const days = businessDaysBetween(
+                    absence.start_date,
+                    absence.end_date,
+                    holidaySet,
+                  )
+                  const isHighlighted =
+                    selectedDay !== null &&
+                    selectedPeopleIds.has(absence.employee_id) &&
+                    absence.start_date <= selectedDay &&
+                    selectedDay <= absence.end_date
+                  return (
+                    <li
+                      key={absence.request_id}
+                      className={
+                        isHighlighted ? 'absence-card absence-card-highlighted' : 'absence-card'
+                      }
+                    >
+                      <div className="absence-card-person">
+                        <PersonAvatar
+                          id={absence.employee_id}
+                          name={absence.employee_name}
+                          hasPhoto={absence.has_photo}
+                          size="sm"
+                        />
+                        <div className="absence-card-identity">
+                          <strong className="absence-card-name">{absence.employee_name}</strong>
+                          <span className="absence-card-area">{absence.area}</span>
+                        </div>
+                      </div>
+                      <div className="absence-card-meta">
+                        <span className="absence-card-dates">
+                          {formatShortRange(absence.start_date, absence.end_date)}
+                        </span>
+                        {days !== null && (
+                          <span className="absence-card-days">
+                            {days === 1 ? '1 día hábil' : `${days} días hábiles`}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </>
