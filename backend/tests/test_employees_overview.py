@@ -9,7 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.api.employees import OTHERS_LABEL, _group_rest
+from app.api.employees import OTHERS_LABEL, _anniversary_date, _group_rest
+from app.core import clock
 from app.models.employee import Employee, EmployeeStatus
 from app.models.user import UserRole
 from app.schemas.employee import CountItem
@@ -72,12 +73,13 @@ def test_overview_route_is_not_swallowed_by_the_detail_route(
     assert auth_client.get("/employees/overview").status_code == 200
 
 
-def test_overview_has_the_four_blocks(auth_client: TestClient) -> None:
+def test_overview_has_the_five_blocks(auth_client: TestClient) -> None:
     assert set(_overview(auth_client)) == {
         "by_area",
         "by_position",
         "recent_hires",
         "recent_departures",
+        "anniversaries",
     }
 
 
@@ -246,3 +248,117 @@ def test_grouping_never_loses_employees() -> None:
 
 def test_an_empty_list_stays_empty() -> None:
     assert _group_rest([], limit=6) == []
+
+
+# --- monthly anniversaries ----------------------------------------------------
+
+
+def test_anniversary_lists_active_employee_from_previous_year(
+    auth_client: TestClient,
+    make_employee_payload: PayloadFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(clock, "today", lambda: date(2026, 7, 15))
+    # Day 1 + "Aaaa" keeps this person at the top even in a shared database.
+    employee_id = _register(
+        auth_client,
+        make_employee_payload(
+            last_names="Aaaa Aniversario",
+            start_date="2024-07-01",
+        ),
+    )
+
+    anniversaries = _overview(auth_client)["anniversaries"]
+    by_id = {row["id"]: row for row in anniversaries}
+
+    assert employee_id in by_id
+    person = by_id[employee_id]
+    assert set(person) == {
+        "id",
+        "first_names",
+        "last_names",
+        "position",
+        "area",
+        "start_date",
+        "anniversary",
+        "years",
+        "has_photo",
+    }
+    assert person["start_date"] == "2024-07-01"
+    assert person["anniversary"] == "2026-07-01"
+    assert person["years"] == 2
+    assert person["has_photo"] is False
+
+
+def test_anniversary_excludes_same_year_other_month_and_inactive(
+    auth_client: TestClient,
+    db: Session,
+    make_employee_payload: PayloadFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(clock, "today", lambda: date(2026, 7, 15))
+    same_year_id = _register(
+        auth_client,
+        make_employee_payload(last_names="Aaaa Mismo", start_date="2026-07-01"),
+    )
+    other_month_id = _register(
+        auth_client,
+        make_employee_payload(last_names="Aaaa Otro", start_date="2024-08-01"),
+    )
+    inactive_id = _register(
+        auth_client,
+        make_employee_payload(last_names="Aaaa Inactivo", start_date="2024-07-01"),
+    )
+    _leave(db, inactive_id, end_date=date(2026, 7, 10))
+
+    ids = {row["id"] for row in _overview(auth_client)["anniversaries"]}
+
+    assert same_year_id not in ids
+    assert other_month_id not in ids
+    assert inactive_id not in ids
+
+
+def test_anniversaries_are_capped_at_eight_and_sorted(
+    auth_client: TestClient,
+    make_employee_payload: PayloadFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(clock, "today", lambda: date(2026, 7, 15))
+    created_ids = {
+        _register(
+            auth_client,
+            make_employee_payload(
+                last_names=f"Aaaa{i:02d}",
+                start_date=f"2023-07-{(i % 2) + 1:02d}",
+            ),
+        )
+        for i in range(10)
+    }
+
+    anniversaries = _overview(auth_client)["anniversaries"]
+
+    assert len(anniversaries) == 8
+    days = [date.fromisoformat(row["start_date"]).day for row in anniversaries]
+    assert days == sorted(days)
+    ours = [row for row in anniversaries if row["id"] in created_ids]
+    our_keys = [
+        (date.fromisoformat(row["start_date"]).day, row["last_names"]) for row in ours
+    ]
+    assert our_keys == sorted(our_keys)
+    for row in anniversaries:
+        assert set(row) == {
+            "id",
+            "first_names",
+            "last_names",
+            "position",
+            "area",
+            "start_date",
+            "anniversary",
+            "years",
+            "has_photo",
+        }
+
+
+def test_leap_day_anniversary_falls_on_feb_28_in_non_leap_year() -> None:
+    assert _anniversary_date(date(2024, 2, 29), 2026) == date(2026, 2, 28)
+    assert _anniversary_date(date(2024, 2, 29), 2028) == date(2028, 2, 29)

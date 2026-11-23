@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import type { PersonSummary } from '../types/employee'
+import { PersonAvatar } from './PersonAvatar'
 
 interface RecentPeopleCardProps {
   id: string
@@ -8,7 +9,7 @@ interface RecentPeopleCardProps {
   people: PersonSummary[]
   emptyText: string
   footnote?: string
-  /** Departures use a neutral avatar: grey instead of the brand blue. */
+  /** Departures keep a muted avatar so inactive records stay visually distinct. */
   muted?: boolean
 }
 
@@ -20,7 +21,7 @@ function formatDate(isoDate: string): string {
 }
 
 function getInitials(person: PersonSummary): string {
-  return `${person.first_names.charAt(0)}${person.last_names.charAt(0)}`.toUpperCase()
+  return `${person.first_names.trim().charAt(0)}${person.last_names.trim().charAt(0)}`.toUpperCase()
 }
 
 export function RecentPeopleCard({
@@ -43,24 +44,32 @@ export function RecentPeopleCard({
         <p className="muted">{emptyText}</p>
       ) : (
         <ul className="recent-list">
-          {people.map((person) => (
-            <li key={person.id} className="recent-row">
-              <span className={muted ? 'avatar avatar-muted' : 'avatar'} aria-hidden="true">
-                {getInitials(person)}
-              </span>
-              <div className="recent-text">
-                <Link to={`/empleados/${person.id}`} className="recent-name">
-                  {person.first_names} {person.last_names}
-                </Link>
-                <span className="muted recent-meta">
-                  {person.position} · {person.area}
+          {people.map((person) => {
+            const fullName = `${person.first_names} ${person.last_names}`
+            return (
+              <li key={person.id} className="recent-row">
+                <PersonAvatar
+                  id={person.id}
+                  name={fullName}
+                  initials={getInitials(person)}
+                  hasPhoto={person.has_photo}
+                  size="md"
+                  className={muted ? 'avatar-departed' : undefined}
+                />
+                <div className="recent-text">
+                  <Link to={`/empleados/${person.id}`} className="recent-name">
+                    {fullName}
+                  </Link>
+                  <span className="muted recent-meta">
+                    {person.position} · {person.area}
+                  </span>
+                </div>
+                <span className="muted recent-date">
+                  {person.event_date === null ? 'Sin fecha' : formatDate(person.event_date)}
                 </span>
-              </div>
-              <span className="muted recent-date">
-                {person.event_date === null ? 'Sin fecha' : formatDate(person.event_date)}
-              </span>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       )}
 

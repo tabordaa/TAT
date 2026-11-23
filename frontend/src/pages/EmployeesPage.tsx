@@ -12,6 +12,7 @@ import {
   IconUserPlus,
   IconUsers,
 } from '../components/Icons'
+import { PersonAvatar } from '../components/PersonAvatar'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import type { EmployeeListResponse, EmployeeStatus } from '../types/employee'
 
@@ -275,12 +276,24 @@ export function EmployeesPage() {
                     onClick={() => void navigate(`/empleados/${employee.id}`)}
                   >
                     <td>
-                      <Link to={`/empleados/${employee.id}`} className="cell-link">
-                        <span className="cell-strong">
-                          {employee.first_names} {employee.last_names}
-                        </span>
-                      </Link>
-                      <span className="cell-sub">{employee.area}</span>
+                      <div className="employee-cell">
+                        <PersonAvatar
+                          id={employee.id}
+                          name={`${employee.first_names} ${employee.last_names}`}
+                          initials={`${employee.first_names.trim().charAt(0)}${employee.last_names.trim().charAt(0)}`.toUpperCase()}
+                          hasPhoto={employee.has_photo}
+                          size="sm"
+                          className={employee.status === 'INACTIVO' ? 'avatar-departed' : undefined}
+                        />
+                        <div className="employee-cell-text">
+                          <Link to={`/empleados/${employee.id}`} className="cell-link">
+                            <span className="cell-strong">
+                              {employee.first_names} {employee.last_names}
+                            </span>
+                          </Link>
+                          <span className="cell-sub">{employee.area}</span>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       {employee.document_type} {employee.document_number}

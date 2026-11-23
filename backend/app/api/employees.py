@@ -1,17 +1,18 @@
 """HU-2.1 registration, HU-2.2 directory (list and search), HU-2.3 detail."""
 
+import calendar
 import uuid
 from datetime import date, datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, extract, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.api.deps import Admin, DbSession, EmployeeReader, HrStaff
 from app.api.me import Storage, photo_response
-from app.core.clock import today
+from app.core import clock
 from app.core.security import generate_temporary_password, hash_password
 from app.models.audit_log import AuditAction
 from app.models.employee import Employee, EmployeeStatus, EmploymentContract
@@ -19,6 +20,7 @@ from app.models.salary_change import SalaryChange
 from app.models.user import User, UserRole
 from app.schemas.employee import (
     AccountCreated,
+    Anniversary,
     CountItem,
     EmployeeCreate,
     EmployeeCreatedResponse,
@@ -45,6 +47,7 @@ DUPLICATE_ACCOUNT = "An access account with this email already exists"
 ACCOUNT_ADMIN_ONLY = "Only an administrator can create access accounts"
 
 RECENT_LIMIT = 5  # rows in the dashboard's "recent hires / departures" lists
+ANNIVERSARY_LIMIT = 8  # rows in the dashboard's monthly anniversaries card
 POSITIONS_SHOWN = 6  # biggest positions drawn as their own bar; the rest are grouped
 OTHERS_LABEL = "Otros"
 
@@ -338,6 +341,45 @@ def _summary(employee: Employee, event_date: date | None) -> PersonSummary:
     )
 
 
+def _anniversary_date(start_date: date, year: int) -> date:
+    """Anniversary in `year`; Feb 29 is celebrated on Feb 28 in non-leap years."""
+    last_day = calendar.monthrange(year, start_date.month)[1]
+    return date(year, start_date.month, min(start_date.day, last_day))
+
+
+def _anniversaries(db: Session, reference: date) -> list[Anniversary]:
+    """Active employees celebrating at least 1 year during `reference`'s month."""
+    rows = db.scalars(
+        select(Employee)
+        .where(
+            Employee.status == EmployeeStatus.ACTIVO,
+            extract("month", Employee.start_date) == reference.month,
+            extract("year", Employee.start_date) < reference.year,
+        )
+        .order_by(
+            extract("day", Employee.start_date),
+            Employee.last_names,
+            Employee.first_names,
+            Employee.id,
+        )
+        .limit(ANNIVERSARY_LIMIT)
+    ).all()
+    return [
+        Anniversary(
+            id=employee.id,
+            first_names=employee.first_names,
+            last_names=employee.last_names,
+            position=employee.position,
+            area=employee.area,
+            start_date=employee.start_date,
+            anniversary=_anniversary_date(employee.start_date, reference.year),
+            years=reference.year - employee.start_date.year,
+            has_photo=employee.has_photo,
+        )
+        for employee in rows
+    ]
+
+
 # NOTE: declared BEFORE "/{employee_id}", otherwise "overview" would be read as an id.
 @router.get("/overview", response_model=EmployeeOverview)
 def get_employee_overview(
@@ -371,6 +413,7 @@ def get_employee_overview(
         ),
         recent_hires=[_summary(e, e.start_date) for e in hires],
         recent_departures=[_summary(e, e.end_date) for e in departures],
+        anniversaries=_anniversaries(db, clock.today()),
     )
 
 
@@ -424,7 +467,7 @@ def export_employees(
     )
     db.commit()
 
-    filename = f"empleados-{today().isoformat()}.csv"
+    filename = f"empleados-{clock.today().isoformat()}.csv"
     return Response(
         content=content.encode("utf-8"),
         media_type="text/csv; charset=utf-8",

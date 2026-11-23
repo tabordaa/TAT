@@ -253,6 +253,21 @@ class PersonSummary(BaseModel):
     has_photo: bool
 
 
+class Anniversary(BaseModel):
+    """An active employee's work anniversary in the current month."""
+
+    id: uuid.UUID
+    first_names: str
+    last_names: str
+    position: str
+    area: str
+    start_date: date
+    # Anniversary date in the current year (Feb 29 is celebrated on Feb 28 in non-leap years).
+    anniversary: date
+    years: int
+    has_photo: bool
+
+
 class EmployeeOverview(BaseModel):
     """What the dashboard draws below the headline numbers (HU-6.1)."""
 
@@ -260,6 +275,7 @@ class EmployeeOverview(BaseModel):
     by_position: list[CountItem]  # active employees per position, long tail grouped
     recent_hires: list[PersonSummary]
     recent_departures: list[PersonSummary]
+    anniversaries: list[Anniversary]
 
 
 class EmployeeStats(BaseModel):
