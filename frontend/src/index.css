@@ -2077,3 +2077,54 @@ a.nav-item .nav-badge {
     background-image: none;
   }
 }
+
+
+/* ---------- Employment certificate ---------- */
+.certificate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.certificate-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+}
+.certificate-checkbox input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.certificate-checkbox input[type='checkbox']:disabled {
+  cursor: not-allowed;
+}
+.certificate-checkbox:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .certificate-actions {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .certificate-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .certificate-actions .btn {
+    width: 100%;
+  }
+}

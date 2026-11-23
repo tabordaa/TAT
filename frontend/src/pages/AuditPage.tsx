@@ -28,6 +28,7 @@ const ACTION_LABELS: Record<string, string> = {
   EMPLOYEES_EXPORTED: 'Empleados exportados',
   HOLIDAY_ADDED: 'Festivo agregado',
   HOLIDAY_REMOVED: 'Festivo eliminado',
+  CERTIFICATE_ISSUED: 'Certificado laboral emitido',
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -52,6 +53,7 @@ const FIELD_LABELS: Record<string, string> = {
   with_salary: 'Incluye salario',
   day: 'Fecha',
   name: 'Nombre',
+  code: 'Código',
   pending_vacation_requests: 'Solicitudes de vacaciones pendientes',
 }
 

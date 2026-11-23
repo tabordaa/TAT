@@ -25,3 +25,12 @@ export async function uploadMyPhoto(file: File): Promise<Employee> {
   })
   return data
 }
+
+/** GET /me/employment-certificate.pdf: downloads the signed-in employee's certificate. */
+export async function downloadEmploymentCertificate(withSalary: boolean): Promise<Blob> {
+  const { data } = await api.get<Blob>('/me/employment-certificate.pdf', {
+    params: { with_salary: withSalary },
+    responseType: 'blob',
+  })
+  return data
+}

@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     supabase_service_role_key: SecretStr | None = None
     supabase_storage_bucket: str | None = None
 
+    # Employment certificate defaults (HU #163). Overridable via .env.
+    company_name: str = "TAT Talento Humano S.A.S."
+    company_nit: str = "900.000.000-0"
+    company_city: str = "Medellín"
+    certificate_signer: str = "Dirección de Gestión Humana"
+
     @field_validator("jwt_secret_key")
     @classmethod
     def _jwt_secret_min_length(cls, value: SecretStr) -> SecretStr:
