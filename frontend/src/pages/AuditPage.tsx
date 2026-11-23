@@ -3,6 +3,9 @@ import axios from 'axios'
 import { listAuditLogs } from '../api/audit'
 import { IconAlert, IconShield } from '../components/Icons'
 import type { AuditLogItem, AuditLogListResponse } from '../types/audit'
+import { ROLE_LABELS, type UserRole } from '../types/auth'
+import { CONTRACT_TYPES, type ContractType, type EmployeeStatus } from '../types/employee'
+import { VACATION_STATUS_LABELS, type VacationStatus } from '../types/vacation'
 
 const PAGE_SIZE = 20
 
@@ -20,7 +23,10 @@ const ACTION_LABELS: Record<string, string> = {
   VACATION_REQUESTED: 'Vacaciones solicitadas',
   VACATION_APPROVED: 'Vacaciones aprobadas',
   VACATION_REJECTED: 'Vacaciones rechazadas',
+  VACATION_CANCELLED: 'Vacaciones canceladas',
   EMPLOYEES_EXPORTED: 'Empleados exportados',
+  HOLIDAY_ADDED: 'Festivo agregado',
+  HOLIDAY_REMOVED: 'Festivo eliminado',
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -38,15 +44,75 @@ const FIELD_LABELS: Record<string, string> = {
   is_active: 'Cuenta activa',
   must_change_password: 'Requiere cambio de contraseña',
   photo: 'Foto',
+  business_days: 'Días hábiles',
+  reason: 'Motivo',
+  q: 'Búsqueda',
+  rows: 'Filas exportadas',
+  with_salary: 'Incluye salario',
+  day: 'Fecha',
+  name: 'Nombre',
+  pending_vacation_requests: 'Solicitudes de vacaciones pendientes',
 }
+
+const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
+  ACTIVO: 'Activo',
+  INACTIVO: 'Inactivo',
+}
+
+const ISO_DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
 
 const dateTimeFormatter = new Intl.DateTimeFormat('es-CO', {
   dateStyle: 'medium',
   timeStyle: 'short',
 })
 
+const currencyFormatter = new Intl.NumberFormat('es-CO', {
+  style: 'currency',
+  currency: 'COP',
+  maximumFractionDigits: 0,
+})
+
+function isEmptyValue(value: string | null): boolean {
+  return value === null || value.trim() === ''
+}
+
+function formatValue(field: string, value: string | null): string {
+  if (value === null || value.trim() === '') return '—'
+  if (value === 'True') return 'Sí'
+  if (value === 'False') return 'No'
+  if (field === 'salary') {
+    const amount = Number(value)
+    return Number.isFinite(amount) ? currencyFormatter.format(amount) : value
+  }
+  // Split instead of Date to avoid time zone shifts on date-only ISO strings.
+  if (ISO_DATE_RE.test(value)) {
+    const [year, month, day] = value.split('-')
+    if (year !== undefined && month !== undefined && day !== undefined) {
+      return `${day}/${month}/${year}`
+    }
+  }
+  if (field === 'role') {
+    return Object.hasOwn(ROLE_LABELS, value) ? ROLE_LABELS[value as UserRole] : value
+  }
+  if (field === 'contract_type') {
+    return Object.hasOwn(CONTRACT_TYPES, value) ? CONTRACT_TYPES[value as ContractType] : value
+  }
+  if (field === 'status') {
+    if (Object.hasOwn(VACATION_STATUS_LABELS, value)) {
+      return VACATION_STATUS_LABELS[value as VacationStatus]
+    }
+    if (Object.hasOwn(EMPLOYEE_STATUS_LABELS, value)) {
+      return EMPLOYEE_STATUS_LABELS[value as EmployeeStatus]
+    }
+    return value
+  }
+  return value
+}
+
 function ChangeList({ item }: { item: AuditLogItem }) {
-  const entries = Object.entries(item.changes)
+  const entries = Object.entries(item.changes).filter(
+    ([, change]) => !isEmptyValue(change.old) || !isEmptyValue(change.new),
+  )
   if (entries.length === 0) {
     return <span className="muted">Sin detalle</span>
   }
@@ -54,7 +120,8 @@ function ChangeList({ item }: { item: AuditLogItem }) {
     <ul className="audit-changes">
       {entries.map(([field, change]) => (
         <li key={field}>
-          <strong>{FIELD_LABELS[field] ?? field}:</strong> {change.old ?? '—'} → {change.new ?? '—'}
+          <strong>{FIELD_LABELS[field] ?? field}:</strong> {formatValue(field, change.old)} →{' '}
+          {formatValue(field, change.new)}
         </li>
       ))}
     </ul>

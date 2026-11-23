@@ -162,7 +162,7 @@ export function RegisterEmployeePage() {
 
   if (created?.account != null) {
     return (
-      <section>
+      <section className="page-readable">
         <nav className="breadcrumb-nav" aria-label="Ruta">
           <Link to="/empleados">
             <IconUsers size={16} /> Empleados
@@ -182,7 +182,7 @@ export function RegisterEmployeePage() {
   }
 
   return (
-    <section>
+    <section className="page-readable">
       <nav className="breadcrumb-nav" aria-label="Ruta">
         <Link to="/empleados">
           <IconUsers size={16} /> Empleados

@@ -192,7 +192,7 @@ export function HolidaysPage() {
                   <tr>
                     <th scope="col">Fecha</th>
                     <th scope="col">Nombre</th>
-                    <th scope="col">Acciones</th>
+                    <th scope="col" className="col-actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -200,7 +200,7 @@ export function HolidaysPage() {
                     <tr key={holiday.day}>
                       <td>{formatDay(holiday.day)}</td>
                       <td>{holiday.name}</td>
-                      <td>
+                      <td className="col-actions">
                         {confirmingDay === holiday.day ? (
                           <div
                             className="row-actions"

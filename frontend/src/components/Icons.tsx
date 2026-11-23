@@ -151,3 +151,10 @@ export const IconSearch = (p: IconProps) => (
     <path d="m21 21-4.3-4.3" />
   </Svg>
 )
+export const IconMenu = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 6h16" />
+    <path d="M4 12h16" />
+    <path d="M4 18h16" />
+  </Svg>
+)

@@ -88,7 +88,7 @@ export function VacationCalendarPage() {
   const title = formatTitle(month)
 
   return (
-    <section>
+    <section className="page-readable">
       <header className="page-header">
         <h1 className="page-title">Calendario de ausencias</h1>
       </header>

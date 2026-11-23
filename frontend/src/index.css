@@ -52,6 +52,7 @@ a {
   place-items: center;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 8px;
   background: var(--color-primary);
   color: #fff;
@@ -67,7 +68,7 @@ a {
   font-size: 0.95rem;
 }
 .brand-text small {
-  font-size: 0.55rem;
+  font-size: 0.65rem;
   letter-spacing: 0.04em;
   color: var(--color-muted);
 }
@@ -145,6 +146,10 @@ a {
   font-size: 1rem;
   margin-bottom: 0.5rem;
 }
+.card .section-kicker {
+  font-size: 0.75rem;
+  margin-bottom: 0;
+}
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -195,6 +200,57 @@ a {
   background: var(--color-surface);
   color: var(--color-text);
 }
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background: var(--color-surface-alt);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+.file-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+.file-input-control {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+/* Keep the native file input in the accessibility tree while showing Spanish labels. */
+.field .file-input-native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.field .file-input-native:disabled {
+  cursor: not-allowed;
+}
+.file-input-native:focus-visible + .file-input-btn {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.file-input-control:hover .file-input-native:not(:disabled) + .file-input-btn {
+  background: var(--color-bg);
+}
+.file-input-native:disabled + .file-input-btn {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.file-input-name {
+  font-size: 0.85rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .field-invalid input,
 .field-invalid select,
 .field-invalid textarea {
@@ -215,21 +271,27 @@ a {
   gap: 0.3rem;
   color: var(--color-success);
 }
+.field-help-ok svg {
+  flex-shrink: 0;
+}
 .input-with-action {
   position: relative;
 }
 .input-with-action input {
-  padding-right: 2.75rem;
+  padding-right: 2.9rem;
 }
 .input-action {
   position: absolute;
-  right: 0.5rem;
+  right: 2px;
   top: 50%;
   transform: translateY(-50%);
   display: grid;
   place-items: center;
-  padding: 0.25rem;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 0;
+  border-radius: 6px;
   background: none;
   color: var(--color-muted);
   cursor: pointer;
@@ -338,6 +400,7 @@ a {
 .login-footer {
   font-size: 0.8rem;
   color: var(--color-muted);
+  text-align: center;
 }
 
 /* ---------- App shell ---------- */
@@ -369,15 +432,18 @@ a {
   flex-direction: column;
   align-items: flex-end;
   gap: 0.15rem;
+  text-align: right;
 }
 .app-user-name {
   font-weight: 600;
+  line-height: 1.2;
 }
 .avatar {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--color-primary);
   color: #fff;
@@ -412,6 +478,26 @@ a {
   color: var(--color-text);
   font-weight: 500;
 }
+.nav-item svg {
+  flex-shrink: 0;
+}
+.nav-badge {
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+/* A link with a counter puts the badge under its label, so long labels keep one line. */
+a.nav-item:has(.nav-badge) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.2rem;
+}
+a.nav-item .nav-badge {
+  grid-column: 2;
+  justify-self: start;
+  margin-left: 0;
+}
 .nav-item:hover {
   background: var(--color-bg);
 }
@@ -430,6 +516,136 @@ a {
   flex: 1;
   min-width: 0;
   padding: 2rem;
+}
+.menu-toggle,
+.sidebar-backdrop,
+.sidebar-user {
+  display: none;
+}
+@media (max-width: 900px) {
+  /* Keep header pinned above the drawer so the toggle button stays clickable. */
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+  }
+  .app-header-left {
+    gap: 0.75rem;
+    min-width: 0;
+  }
+  .app-user {
+    gap: 0.6rem;
+    min-width: 0;
+  }
+  .app-user-info {
+    min-width: 0;
+  }
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    flex-shrink: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+  }
+  .menu-toggle:hover {
+    background: var(--color-bg);
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(16, 24, 40, 0.45);
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 85vw);
+    padding: 5.4rem 1rem 1.5rem;
+    scroll-padding-top: 5.4rem;
+    overflow-y: auto;
+    z-index: 35;
+    transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+  .sidebar.is-open {
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    box-shadow: 4px 0 20px rgba(16, 24, 40, 0.14);
+    transition: transform 0.2s ease, visibility 0s linear 0s;
+  }
+}
+@media (max-width: 600px) {
+  .app-header {
+    gap: 0.5rem;
+  }
+  .app-header-left {
+    gap: 0.6rem;
+  }
+  .app-user-info,
+  .app-user .avatar {
+    display: none;
+  }
+  .app-user .btn {
+    position: relative;
+    padding: 0.6rem;
+    gap: 0;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  /* Keep logout label in the accessibility tree while showing only the icon. */
+  .app-user .btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .sidebar-user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+  .sidebar-user-name {
+    font-weight: 600;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar.is-open {
+    transition: none;
+  }
 }
 /* Tables use the whole width; a record's label/value pairs stay at a
    comfortable reading width instead of drifting apart on wide monitors. */
@@ -475,6 +691,7 @@ a {
   place-items: center;
   width: 44px;
   height: 44px;
+  flex-shrink: 0;
   border-radius: 10px;
   background: var(--color-surface-alt);
   color: var(--color-primary);
@@ -546,7 +763,7 @@ a {
 .toolbar {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--color-border);
@@ -573,6 +790,10 @@ a {
   padding-left: 2.4rem;
   padding-right: 2.4rem;
 }
+.search-box input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
 .search-clear {
   position: absolute;
   right: 0.4rem;
@@ -592,6 +813,9 @@ a {
 }
 .toolbar-count {
   font-size: 0.9rem;
+  margin-left: auto;
+  padding-bottom: 0.65rem;
+  white-space: nowrap;
 }
 .table-card .alert {
   margin: 1rem 1.25rem;
@@ -740,6 +964,30 @@ a {
 .detail-section {
   padding: 1.5rem 2rem;
 }
+.detail-section .section-kicker + p {
+  margin-top: 0.5rem;
+}
+.detail-section h3.section-kicker {
+  margin-top: 1.25rem;
+}
+.detail-section .alert,
+.detail-section .form-grid,
+.detail-section .table-wrap,
+.detail-grid + .field-help,
+.form-grid + .field-help,
+.calendar + .field-help,
+.detail-section .alert + .field-help {
+  margin-top: 0.75rem;
+}
+.detail-section .table-wrap + form,
+.detail-section .form-actions {
+  margin-top: 1rem;
+}
+.inline-edit-form {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
 /* HU-4.4: the absence calendar, a plain CSS grid (no calendar library). */
 .calendar-toolbar {
   display: flex;
@@ -778,7 +1026,7 @@ a {
 }
 .calendar-weekend {
   background: #f3f5f8;
-  color: #9aa5b1;
+  color: var(--color-muted);
 }
 /* HU-4.6: a holiday is not a vacation day, like a weekend, but it has a name. */
 .calendar-holiday {
@@ -900,15 +1148,6 @@ a {
 }
 
 @media (max-width: 900px) {
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    display: none;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
   .app-title {
     display: none;
   }
@@ -936,9 +1175,9 @@ a {
 }
 .bar-row {
   display: grid;
-  grid-template-columns: minmax(110px, 170px) 1fr 74px;
+  grid-template-columns: minmax(90px, 38%) minmax(80px, 1fr) 68px;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   padding: 0.45rem 0.25rem;
   border-radius: 6px;
 }
@@ -965,6 +1204,7 @@ a {
 .bar-value {
   font-size: 0.9rem;
   text-align: right;
+  white-space: nowrap;
 }
 .bar-value .muted {
   font-size: 0.8rem;
@@ -981,6 +1221,11 @@ a {
 }
 .recent-header a {
   font-size: 0.85rem;
+}
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 .recent-row {
   display: flex;
@@ -1028,6 +1273,14 @@ a {
 .contract-alerts {
   margin-top: 16px;
 }
+.contract-alerts .recent-header {
+  padding: 1rem 1.25rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.contract-alerts > .muted {
+  padding: 1rem 1.25rem;
+}
 .badge-danger {
   background: var(--color-danger-bg);
   color: var(--color-danger);
@@ -1067,4 +1320,203 @@ a {
 }
 .modal h2 {
   margin-top: 0;
+}
+
+/* ---------- Responsive content (tablet and phone) ---------- */
+.chart-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+@media (min-width: 901px) {
+  .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.badge {
+  white-space: nowrap;
+}
+.calendar-toolbar {
+  flex-wrap: wrap;
+  row-gap: 0.75rem;
+}
+.form-footer,
+.form-actions,
+.page-actions {
+  flex-wrap: wrap;
+}
+.row-actions {
+  flex-wrap: nowrap;
+}
+/* Compact action buttons inside tables so single-row actions fit at 1366px. */
+.table .btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+}
+/* Keep row actions visible during horizontal scroll without hiding row content. */
+.table .col-actions {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: -6px 0 8px -6px rgba(16, 24, 40, 0.14);
+}
+.table thead th.col-actions {
+  z-index: 2;
+  background: var(--color-surface-alt);
+}
+.table tbody tr:hover .col-actions {
+  background: var(--color-bg);
+}
+/* Horizontal scroll affordance: local masks hide the shadows when no scroll remains. */
+.table-wrap {
+  background:
+    linear-gradient(to right, var(--color-surface) 30%, rgba(255, 255, 255, 0)) left center / 32px
+      100%,
+    linear-gradient(to left, var(--color-surface) 30%, rgba(255, 255, 255, 0)) right center / 32px
+      100%,
+    radial-gradient(farthest-side at 0 50%, rgba(16, 24, 40, 0.16), rgba(16, 24, 40, 0)) left
+      center / 14px 100%,
+    radial-gradient(farthest-side at 100% 50%, rgba(16, 24, 40, 0.16), rgba(16, 24, 40, 0)) right
+      center / 14px 100%;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    padding: 1.5rem 1.25rem;
+  }
+  .toolbar {
+    flex-wrap: wrap;
+  }
+  .toolbar-field {
+    min-width: 0;
+  }
+  .table th,
+  .table td {
+    padding: 0.6rem 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-main {
+    padding: 1rem;
+  }
+  .card,
+  .detail-section,
+  .form-card {
+    padding: 1rem;
+  }
+  .login-card {
+    padding: 1.25rem;
+  }
+  .card.table-card,
+  .table-card {
+    padding: 0;
+  }
+  /* Stack sticky row actions on narrow phones so data columns remain readable. */
+  .table .col-actions .row-actions {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .table .btn {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.82rem;
+  }
+  .calendar-toolbar {
+    gap: 0.5rem;
+  }
+  .calendar-title {
+    order: -1;
+    flex: 1 0 100%;
+    text-align: center;
+  }
+  .calendar-toolbar .btn {
+    flex: 1 1 0;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.88rem;
+  }
+  .calendar-filters .field {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .calendar-row,
+  .calendar-days {
+    gap: 0.2rem;
+  }
+  .calendar-day {
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: 0.25rem;
+    overflow: hidden;
+  }
+  .calendar-holiday-name,
+  .calendar-count {
+    display: block;
+    max-width: 100%;
+    font-size: 0.65rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .form-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .form-footer .form-actions .btn,
+  .page-actions .btn {
+    flex: 1 1 auto;
+  }
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+  .toolbar-search,
+  .toolbar-field {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: none;
+  }
+  .toolbar-count {
+    margin-left: 0;
+    padding-bottom: 0;
+  }
+  .detail-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .bar-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.3rem 0.5rem;
+  }
+  .bar-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .bar-value {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .bar-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .contract-alerts .recent-header,
+  .contract-alerts > .muted {
+    padding: 0.85rem 1rem;
+  }
+  .pagination {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    padding: 0.85rem 1rem;
+  }
+  .pagination > span {
+    white-space: nowrap;
+  }
 }
