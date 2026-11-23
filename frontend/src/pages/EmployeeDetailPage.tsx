@@ -54,7 +54,7 @@ export function EmployeeDetailPage() {
   const canWrite = user?.role === 'ADMIN' || user?.role === 'HR'
 
   return (
-    <section className="page-readable">
+    <section>
       <nav className="breadcrumb-nav" aria-label="Ruta">
         <Link to="/empleados">
           <IconUsers size={16} /> Empleados

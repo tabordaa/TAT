@@ -228,7 +228,7 @@ export function MyVacationsPage() {
     errors[field] !== undefined ? `vacation-${field}-error` : undefined
 
   return (
-    <section className="page-readable">
+    <section>
       <header className="page-header">
         <h1 className="page-title">Mis vacaciones</h1>
       </header>
