@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { getMyEmployee, MY_PHOTO_URL } from '../api/me'
+import { CertificateCard } from '../components/CertificateCard'
 import { ContactForm } from '../components/ContactForm'
 import {
   EmployeeRecordHeader,
@@ -91,6 +92,9 @@ export function MyProfilePage() {
           />
           <div className="detail-sections">
             <VacationBalanceCard employeeId={null} />
+            {load.employee.status === 'ACTIVO' && (
+              <CertificateCard documentNumber={load.employee.document_number} />
+            )}
             <PersonalDataSection employee={load.employee} />
             <EmploymentDataSection employee={load.employee} />
             <ContactForm

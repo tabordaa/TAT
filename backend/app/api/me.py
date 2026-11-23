@@ -20,10 +20,13 @@ from fastapi import (
 )
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.clock import today
+from app.core.config import get_settings
 from app.models.audit_log import AuditAction
-from app.models.employee import Employee
+from app.models.employee import Employee, EmployeeStatus
 from app.schemas.employee import ContactUpdate, EmployeeResponse
 from app.services.audit import record_audit
+from app.services.certificate import build_certificate, generate_verification_code
 from app.services.photo_storage import (
     MAX_PHOTO_BYTES,
     PhotoStorage,
@@ -32,6 +35,7 @@ from app.services.photo_storage import (
     detect_image,
     get_photo_storage,
 )
+from app.services.vacations import current_contract
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -170,3 +174,67 @@ def update_my_photo(
         except StorageError as exc:
             logger.warning("old photo not removed: %s", exc)
     return employee
+
+
+def _conflict(field: str, message: str) -> HTTPException:
+    # Local helper to avoid a circular import with app.api.employees.
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"field": field, "message": message},
+    )
+
+
+@router.get("/employment-certificate.pdf", response_class=Response)
+def get_my_employment_certificate(
+    request: Request,
+    current_user: CurrentUser,
+    db: DbSession,
+    with_salary: bool = False,
+) -> Response:
+    """HU #163: downloadable employment certificate for the signed-in employee."""
+    employee = own_employee(current_user, db)
+    if (
+        employee.status is not EmployeeStatus.ACTIVO
+        or current_contract(db, employee.id) is None
+    ):
+        raise _conflict(
+            "status",
+            "Only an active employee with a contract in force can download a certificate",
+        )
+
+    code = generate_verification_code()
+    pdf_bytes = build_certificate(
+        employee,
+        with_salary=with_salary,
+        code=code,
+        issued_on=today(),
+        settings=get_settings(),
+    )
+
+    record_audit(
+        db,
+        actor=current_user,
+        request=request,
+        action=AuditAction.CERTIFICATE_ISSUED,
+        entity_type="employee",
+        entity_id=employee.id,
+        changes={
+            "code": (None, code),
+            "with_salary": (None, with_salary),
+        },
+    )
+    db.commit()
+
+    safe_doc = "".join(
+        ch for ch in employee.document_number if ch.isalnum() or ch in "-_"
+    )
+    filename = f"certificado-laboral-{safe_doc}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            # Personal employment data: keep browsers and proxies from caching it.
+            "Cache-Control": "no-store",
+        },
+    )
