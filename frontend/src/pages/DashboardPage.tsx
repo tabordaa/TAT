@@ -9,6 +9,7 @@ import { ContractAlertsCard } from '../components/ContractAlertsCard'
 import { DistributionCard } from '../components/DistributionCard'
 import { IconAlert, IconCheck, IconUser, IconUsers } from '../components/Icons'
 import { RecentPeopleCard } from '../components/RecentPeopleCard'
+import { SkeletonCard } from '../components/Skeleton'
 import type { ContractAlert, EmployeeOverview, EmployeeStats } from '../types/employee'
 
 // Numbers are re-read while the dashboard is open, so they follow the database
@@ -122,26 +123,44 @@ export function DashboardPage() {
         </div>
       ) : (
         <>
-          <div className="stat-grid" aria-busy={load.phase === 'loading'}>
-            <StatCard
-              label="Total de empleados históricos"
-              value={stats?.total ?? null}
-              icon={<IconUsers size={22} />}
-              tone="neutral"
-            />
-            <StatCard
-              label="Empleados activos"
-              value={stats?.active ?? null}
-              icon={<IconCheck size={22} />}
-              tone="success"
-            />
-            <StatCard
-              label="Empleados inactivos"
-              value={stats?.inactive ?? null}
-              icon={<IconUser size={22} />}
-              tone="muted"
-            />
-          </div>
+          {load.phase === 'loading' ? (
+            <div className="skeleton-status" role="status" aria-busy="true">
+              <span className="sr-only">Cargando indicadores…</span>
+              <div className="stat-grid">
+                <SkeletonCard variant="stat" />
+                <SkeletonCard variant="stat" />
+                <SkeletonCard variant="stat" />
+              </div>
+              <SkeletonCard className="contract-alerts" lines={3} />
+              <div className="chart-grid">
+                <SkeletonCard lines={5} />
+                <SkeletonCard lines={5} />
+                <SkeletonCard lines={5} />
+                <SkeletonCard lines={5} />
+              </div>
+            </div>
+          ) : (
+            <div className="stat-grid">
+              <StatCard
+                label="Total de empleados históricos"
+                value={stats?.total ?? null}
+                icon={<IconUsers size={22} />}
+                tone="neutral"
+              />
+              <StatCard
+                label="Empleados activos"
+                value={stats?.active ?? null}
+                icon={<IconCheck size={22} />}
+                tone="success"
+              />
+              <StatCard
+                label="Empleados inactivos"
+                value={stats?.inactive ?? null}
+                icon={<IconUser size={22} />}
+                tone="muted"
+              />
+            </div>
+          )}
 
           {load.phase === 'ready' && <ContractAlertsCard alerts={load.alerts} />}
 

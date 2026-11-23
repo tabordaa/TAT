@@ -9,6 +9,8 @@ import {
   type Employee,
 } from '../types/employee'
 import { IconAlert } from './Icons'
+import { SkeletonTable } from './Skeleton'
+import { useToast } from './Toast'
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'UTC' })
 
@@ -65,6 +67,7 @@ interface AssignFormProps {
 
 // HU-3.1. CA02 and CA03: the end date is required or disabled depending on the type.
 function AssignContractForm({ employee, onDone, onCancel }: AssignFormProps) {
+  const { showToast } = useToast()
   const [contractType, setContractType] = useState<ContractType | ''>('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -97,6 +100,7 @@ function AssignContractForm({ employee, onDone, onCancel }: AssignFormProps) {
         start_date: startDate,
         end_date: needsEndDate ? endDate : null,
       })
+      showToast(isRehire ? 'Reingreso registrado.' : 'Contrato asignado.')
       onDone()
     } catch (err) {
       setError(toMessage(err, 'No se pudo guardar el contrato. Inténtalo de nuevo.'))
@@ -191,6 +195,7 @@ interface TerminateModalProps {
 
 // HU-3.3 CA01: two explicit steps before the departure is applied.
 function TerminateContractModal({ employee, onCancel, onDone }: TerminateModalProps) {
+  const { showToast } = useToast()
   const [step, setStep] = useState<'date' | 'confirm'>('date')
   const [endDate, setEndDate] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -225,6 +230,7 @@ function TerminateContractModal({ employee, onCancel, onDone }: TerminateModalPr
     setError(null)
     try {
       await terminateContract(employee.id, endDate)
+      showToast('Contrato finalizado.')
       onDone()
     } catch (err) {
       setError(toMessage(err, 'No se pudo registrar la baja. Inténtalo de nuevo.'))
@@ -345,6 +351,10 @@ export function ContractSection({ employee, canWrite, onChanged }: ContractSecti
       <p className="section-kicker">CONTRATOS</p>
 
       {loadFailed && <p className="muted">No se pudo cargar el historial de contratos.</p>}
+
+      {!loadFailed && contracts === null && (
+        <SkeletonTable rows={2} columns={4} label="Cargando contratos…" />
+      )}
 
       {contracts !== null && contracts.length > 0 && (
         <div className="table-wrap">

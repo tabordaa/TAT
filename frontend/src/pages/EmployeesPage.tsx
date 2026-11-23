@@ -1,11 +1,10 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import axios from 'axios'
 import { exportEmployees, listEmployees } from '../api/employees'
 import { useAuth } from '../auth/useAuth'
 import {
   IconAlert,
-  IconCheck,
   IconClose,
   IconDownload,
   IconSearch,
@@ -13,6 +12,8 @@ import {
   IconUsers,
 } from '../components/Icons'
 import { PersonAvatar } from '../components/PersonAvatar'
+import { SkeletonTable } from '../components/Skeleton'
+import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import type { EmployeeListResponse, EmployeeStatus } from '../types/employee'
 
@@ -55,9 +56,20 @@ type Load =
 
 // HU-2.2: directory with search, status filter and pagination.
 export function EmployeesPage() {
-  const createdName = getCreatedName(useLocation().state)
+  const location = useLocation()
+  const createdName = getCreatedName(location.state)
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { showToast } = useToast()
+  const shownCreatedRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (createdName === null || shownCreatedRef.current === createdName) return
+    shownCreatedRef.current = createdName
+    showToast(`Empleado registrado. ${createdName} quedó registrado con estado ACTIVO.`)
+    // Clear history state so reloading or navigating back does not replay the toast.
+    void navigate(location.pathname, { replace: true, state: null })
+  }, [createdName, location.pathname, navigate, showToast])
 
   // searchText follows every keystroke (so the input feels instant); appliedQ is
   // what the API is actually asked, updated only after the debounce.
@@ -165,16 +177,6 @@ export function EmployeesPage() {
         </div>
       )}
 
-      {createdName !== null && (
-        <div className="alert alert-success" role="status">
-          <IconCheck size={20} />
-          <div className="alert-body">
-            <strong>Empleado registrado.</strong>
-            <span>{createdName} quedó registrado con estado ACTIVO.</span>
-          </div>
-        </div>
-      )}
-
       <div className="card table-card">
         <div className="toolbar">
           <div className="field toolbar-search" role="search">
@@ -237,9 +239,7 @@ export function EmployeesPage() {
         )}
 
         {load.phase === 'loading' && (
-          <p className="table-status muted" role="status">
-            Cargando empleados…
-          </p>
+          <SkeletonTable rows={6} columns={5} label="Cargando empleados…" />
         )}
 
         {data !== null && data.items.length === 0 && (

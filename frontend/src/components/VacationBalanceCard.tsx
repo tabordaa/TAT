@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { getMyVacationBalance, getVacationBalance } from '../api/vacations'
 import type { VacationBalance } from '../types/vacation'
+import { SkeletonCard } from './Skeleton'
 
 // "15.00" -> "15", "1.23" -> "1,23": the balance can have a fraction of a day.
 const daysFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 })
@@ -59,9 +60,7 @@ export function VacationBalanceCard({ employeeId, version = 0, onLoaded }: Vacat
       </h2>
 
       {state.phase === 'loading' && (
-        <p className="muted" role="status">
-          Calculando saldo…
-        </p>
+        <SkeletonCard bare variant="balance" label="Calculando saldo…" />
       )}
       {state.phase === 'error' && <p className="muted">No se pudo calcular el saldo de vacaciones.</p>}
 

@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import axios from 'axios'
 import { addHoliday, getHolidays, removeHoliday } from '../api/holidays'
-import { IconAlert, IconCheck } from '../components/Icons'
+import { IconAlert } from '../components/Icons'
+import { SkeletonTable } from '../components/Skeleton'
+import { useToast } from '../components/Toast'
 import type { Holiday } from '../types/holiday'
 import { todayInBogota } from '../utils/businessDays'
 
@@ -27,12 +29,12 @@ interface Values {
 // HU-4.6 CA01: the ADMIN keeps the holiday table, e.g. a day declared by decree.
 // The seed has the calculated holidays; requests already made keep their count.
 export function HolidaysPage() {
+  const { showToast } = useToast()
   const [year, setYear] = useState(() => Number(todayInBogota().slice(0, 4)))
   const [load, setLoad] = useState<Load>({ phase: 'loading' })
   const [version, setVersion] = useState(0)
   const [values, setValues] = useState<Values>({ day: '', name: '' })
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [confirmingDay, setConfirmingDay] = useState<string | null>(null)
 
@@ -49,7 +51,6 @@ export function HolidaysPage() {
 
   async function handleAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setNotice(null)
     const name = values.name.trim()
     if (values.day === '' || name.length < 3) {
       setError('Elige la fecha y escribe un nombre de al menos 3 caracteres.')
@@ -60,7 +61,7 @@ export function HolidaysPage() {
       const created = await addHoliday({ day: values.day, name })
       setValues({ day: '', name: '' })
       setError(null)
-      setNotice(`Festivo agregado: ${formatDay(created.day)}, ${created.name}.`)
+      showToast(`Festivo agregado: ${formatDay(created.day)}, ${created.name}.`)
       setYear(Number(created.day.slice(0, 4)))
       setVersion((count) => count + 1)
     } catch (reason) {
@@ -74,11 +75,10 @@ export function HolidaysPage() {
   }
 
   async function handleRemove(holiday: Holiday) {
-    setNotice(null)
     setError(null)
     try {
       await removeHoliday(holiday.day)
-      setNotice(`Festivo eliminado: ${formatDay(holiday.day)}, ${holiday.name}.`)
+      showToast(`Festivo eliminado: ${formatDay(holiday.day)}, ${holiday.name}.`)
     } catch {
       setError('No se pudo eliminar el festivo.')
     } finally {
@@ -112,14 +112,6 @@ export function HolidaysPage() {
               <IconAlert size={20} />
               <div className="alert-body">
                 <span>{error}</span>
-              </div>
-            </div>
-          )}
-          {notice !== null && (
-            <div className="alert alert-success" role="status">
-              <IconCheck size={20} />
-              <div className="alert-body">
-                <span>{notice}</span>
               </div>
             </div>
           )}
@@ -180,7 +172,9 @@ export function HolidaysPage() {
             </button>
           </div>
 
-          {load.phase === 'loading' && <p className="muted">Cargando festivos…</p>}
+          {load.phase === 'loading' && (
+            <SkeletonTable rows={6} columns={3} label="Cargando festivos…" />
+          )}
           {load.phase === 'error' && <p className="muted">No se pudieron cargar los festivos.</p>}
           {load.phase === 'ready' && load.holidays.length === 0 && (
             <p className="muted">No hay festivos registrados para {year}.</p>

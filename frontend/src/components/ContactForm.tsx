@@ -2,7 +2,8 @@ import { useState, type ChangeEvent, type FormEvent } from 'react'
 import axios from 'axios'
 import { updateMyContact, uploadMyPhoto } from '../api/me'
 import type { Employee } from '../types/employee'
-import { IconAlert, IconCheck } from './Icons'
+import { IconAlert } from './Icons'
+import { useToast } from './Toast'
 
 const PHONE_PATTERN = /^\+?[0-9 ()-]{7,30}$/ // same rule as the API
 const MAX_ADDRESS_LENGTH = 200
@@ -28,11 +29,11 @@ export function ContactForm({
   employee: Employee
   onSaved: (updated: Employee) => void
 }) {
+  const { showToast } = useToast()
   const [phone, setPhone] = useState(employee.phone ?? '')
   const [address, setAddress] = useState(employee.address ?? '')
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
@@ -40,7 +41,6 @@ export function ContactForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setNotice(null)
 
     const trimmedPhone = phone.trim()
     if (trimmedPhone !== '' && !PHONE_PATTERN.test(trimmedPhone)) {
@@ -58,7 +58,7 @@ export function ContactForm({
           address: trimmedAddress === '' ? null : trimmedAddress,
         }),
       )
-      setNotice('Tus datos de contacto se actualizaron.')
+      showToast('Tus datos de contacto se actualizaron.')
     } catch {
       setError('No se pudieron guardar los cambios. Revisa los datos e inténtalo de nuevo.')
     } finally {
@@ -72,7 +72,6 @@ export function ContactForm({
     if (file === undefined) return
     setSelectedFileName(file.name)
     setError(null)
-    setNotice(null)
 
     if (!PHOTO_TYPES.includes(file.type)) {
       setError('La foto debe ser una imagen JPG, PNG o WEBP.')
@@ -86,7 +85,7 @@ export function ContactForm({
     setIsUploading(true)
     try {
       onSaved(await uploadMyPhoto(file))
-      setNotice('Tu foto se actualizó.')
+      showToast('Tu foto se actualizó.')
     } catch (err) {
       setError(photoErrorMessage(err))
     } finally {
@@ -103,14 +102,6 @@ export function ContactForm({
           <IconAlert size={20} />
           <div className="alert-body">
             <span>{error}</span>
-          </div>
-        </div>
-      )}
-      {notice !== null && (
-        <div className="alert alert-success" role="status">
-          <IconCheck size={20} />
-          <div className="alert-body">
-            <span>{notice}</span>
           </div>
         </div>
       )}

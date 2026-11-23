@@ -5,6 +5,7 @@ import { getHolidayMap } from '../api/holidays'
 import { getVacationCalendar } from '../api/vacations'
 import { IconAlert, IconCalendar } from '../components/Icons'
 import { PersonAvatar } from '../components/PersonAvatar'
+import { SkeletonCard } from '../components/Skeleton'
 import { VacationCalendar, buildMonth } from '../components/VacationCalendar'
 import type { CalendarAbsence } from '../types/vacation'
 import { businessDaysBetween, todayInBogota } from '../utils/businessDays'
@@ -166,7 +167,9 @@ export function VacationCalendarPage() {
           </div>
         </div>
 
-        {load.phase === 'loading' && <p className="muted">Cargando calendario…</p>}
+        {load.phase === 'loading' && (
+          <SkeletonCard bare variant="calendar" label="Cargando calendario…" />
+        )}
         {load.phase === 'error' && (
           <div className="alert alert-error" role="alert">
             <IconAlert size={20} />

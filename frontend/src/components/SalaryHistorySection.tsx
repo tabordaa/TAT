@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { getSalaryHistory } from '../api/employees'
 import type { SalaryChange } from '../types/employee'
+import { SkeletonTable } from './Skeleton'
 
 const moneyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -50,9 +51,7 @@ export function SalaryHistorySection({ employeeId, salary }: SalaryHistorySectio
       </h2>
 
       {load.phase === 'loading' && (
-        <p className="muted" role="status">
-          Cargando historial…
-        </p>
+        <SkeletonTable rows={3} columns={4} label="Cargando historial…" />
       )}
       {load.phase === 'error' && <p className="muted">No se pudo cargar el historial salarial.</p>}
       {load.phase === 'ready' && load.changes.length === 0 && (

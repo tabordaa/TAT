@@ -8,6 +8,7 @@ import {
   PersonalDataSection,
 } from '../components/EmployeeRecord'
 import { IconAlert, IconUser } from '../components/Icons'
+import { SkeletonCard } from '../components/Skeleton'
 import { VacationBalanceCard } from '../components/VacationBalanceCard'
 import type { Employee } from '../types/employee'
 
@@ -45,9 +46,15 @@ export function MyProfilePage() {
   return (
     <section>
       {load.phase === 'loading' && (
-        <p className="table-status muted" role="status">
-          Cargando tu perfil…
-        </p>
+        <div className="skeleton-status" role="status">
+          <span className="sr-only">Cargando tu perfil…</span>
+          <SkeletonCard variant="header" />
+          <div className="detail-sections">
+            <SkeletonCard variant="balance" />
+            <SkeletonCard variant="detail" lines={7} />
+            <SkeletonCard variant="detail" lines={6} />
+          </div>
+        </div>
       )}
 
       {load.phase === 'not-linked' && (
