@@ -200,7 +200,9 @@ def test_recent_lists_are_capped_and_expose_no_sensitive_data(
             "position",
             "area",
             "event_date",
+            "has_photo",
         }
+        assert person["has_photo"] is False
 
 
 # --- grouping of the long tail ------------------------------------------------

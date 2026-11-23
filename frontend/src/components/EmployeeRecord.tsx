@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { CONTRACT_TYPES, DOCUMENT_TYPES, type Employee } from '../types/employee'
+import { PersonAvatar } from './PersonAvatar'
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', { dateStyle: 'long', timeZone: 'UTC' })
 const salaryFormatter = new Intl.NumberFormat('es-CO', {
@@ -29,26 +30,6 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
   )
 }
 
-/** The private photo, served by the API, or the initials if there is none or it fails to load. */
-function Avatar({ employee, photoUrl }: { employee: Employee; photoUrl: string }) {
-  const [failedUrl, setFailedUrl] = useState<string | null>(null)
-
-  if (!employee.has_photo || failedUrl === photoUrl) {
-    return (
-      <span className="avatar avatar-lg" aria-hidden="true">
-        {getInitials(employee)}
-      </span>
-    )
-  }
-  return (
-    <img
-      className="avatar avatar-lg avatar-photo"
-      src={photoUrl}
-      alt=""
-      onError={() => setFailedUrl(photoUrl)}
-    />
-  )
-}
 
 export function EmployeeRecordHeader({
   employee,
@@ -59,7 +40,14 @@ export function EmployeeRecordHeader({
 }) {
   return (
     <div className="detail-header">
-      <Avatar employee={employee} photoUrl={photoUrl} />
+      <PersonAvatar
+        id={employee.id}
+        name={`${employee.first_names} ${employee.last_names}`}
+        initials={getInitials(employee)}
+        hasPhoto={employee.has_photo}
+        photoUrl={photoUrl}
+        size="lg"
+      />
       <div className="detail-header-text">
         <div className="detail-title-row">
           <h1 className="page-title">

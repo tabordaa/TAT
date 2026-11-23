@@ -312,6 +312,7 @@ def get_vacation_calendar(
             area=employee.area,
             start_date=vacation.start_date,
             end_date=vacation.end_date,
+            has_photo=employee.has_photo,
         )
         for vacation, employee in rows
     ]

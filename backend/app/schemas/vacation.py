@@ -82,6 +82,7 @@ class CalendarAbsence(BaseModel):
     area: str  # HU-4.8: the calendar can be filtered by area
     start_date: date
     end_date: date
+    has_photo: bool
 
 
 class VacationReject(BaseModel):
