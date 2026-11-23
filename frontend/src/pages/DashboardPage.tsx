@@ -4,6 +4,7 @@ import axios from 'axios'
 import { getContractAlerts } from '../api/contracts'
 import { getEmployeeOverview, getEmployeeStats } from '../api/employees'
 import { useAuth } from '../auth/useAuth'
+import { AnniversariesCard } from '../components/AnniversariesCard'
 import { ContractAlertsCard } from '../components/ContractAlertsCard'
 import { DistributionCard } from '../components/DistributionCard'
 import { IconAlert, IconCheck, IconUser, IconUsers } from '../components/Icons'
@@ -175,6 +176,10 @@ export function DashboardPage() {
                 emptyText="Todavía no hay salidas registradas."
                 footnote="Empleados inactivos, ordenados por fecha de fin de contrato."
                 muted
+              />
+              <AnniversariesCard
+                id="monthly-anniversaries"
+                anniversaries={load.overview.anniversaries}
               />
             </div>
           )}

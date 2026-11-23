@@ -171,12 +171,26 @@ export interface PersonSummary {
   has_photo: boolean
 }
 
+/** An active employee's work anniversary in the current month (mirrors backend Anniversary). */
+export interface Anniversary {
+  id: string
+  first_names: string
+  last_names: string
+  position: string
+  area: string
+  start_date: string
+  anniversary: string
+  years: number
+  has_photo: boolean
+}
+
 /** Response of GET /employees/overview (mirrors backend EmployeeOverview). */
 export interface EmployeeOverview {
   by_area: CountItem[]
   by_position: CountItem[]
   recent_hires: PersonSummary[]
   recent_departures: PersonSummary[]
+  anniversaries: Anniversary[]
 }
 
 /** Response of GET /employees/stats (mirrors backend EmployeeStats). */
