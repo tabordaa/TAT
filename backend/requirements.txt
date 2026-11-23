@@ -6,7 +6,7 @@ PyJWT==2.15.1
 pwdlib[argon2]==0.3.1
 alembic==1.20.0
 httpx==0.28.1
-fpdf2==2.8.3
+fpdf2==2.8.8
 
 # Transitive (email-validator). Floor pinned for CVE-2026-114605.
 dnspython>=2.9.0
